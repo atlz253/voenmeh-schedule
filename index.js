@@ -9,6 +9,69 @@ const daysShortenings = Object.freeze({
   "Суббота": "СБ"
 });
 
+class NavigatorElement extends HTMLElement {
+  constructor() {
+    super();
+    this.#addHistoryChangeListener();
+  }
+
+  #addHistoryChangeListener() {
+    window.addEventListener("popstate", (event) => {
+      const { element } = event.state;
+
+      switch (element) {
+        case GroupsListElement.tagName:
+          this.removeChild(this.groupElement);
+          this.appendChild(this.groupsElement);
+          break;
+        case GroupElement.tagName:
+          const { group } = event.state;
+          this.#setGroupElement(this.schedule.getGroupByNumber(group));
+          break;
+        default:
+          throw new Error("Не удалось восстановить состояние истории")
+      }
+    })
+  }
+
+  connectedCallback() {
+    window.history.replaceState({
+      element: GroupsListElement.tagName
+    }, "");
+
+
+    this.groupsElement = document.createElement(GroupsListElement.tagName);
+    this.appendChild(this.groupsElement);
+
+    this.#tryGetSchedule();
+  }
+
+  async #tryGetSchedule() {
+    this.schedule = await tryGetSchedule();
+    this.groupsElement.groups = this.schedule.groups;
+  }
+
+  navigateToGroup(group) {
+    window.history.pushState({
+      element: GroupElement.tagName,
+      group: group.name
+    }, "")
+
+    this.#setGroupElement(group);
+  }
+
+  #setGroupElement(group) {
+    this.groupElement = document.createElement(GroupElement.tagName);
+    this.removeChild(this.groupsElement);
+    this.appendChild(this.groupElement);
+    this.groupElement.group = group;
+  }
+
+  static get tagName() {
+    return "schedule-navigator";
+  }
+}
+
 class Schedule {
   constructor(xmlDocument) {
     this.xmlDocument = xmlDocument;
@@ -24,6 +87,103 @@ class Schedule {
 
     return groups;
   }
+
+  getGroupByNumber(number) {
+    const xmlNode = this.xmlDocument.querySelector(`Group[Number='${number}']`);
+    return new GroupSchedule(xmlNode);
+  }
+}
+
+class GroupsListElement extends HTMLElement {
+  constructor() {
+    super();
+  }
+
+  set groups(groups) {
+    this.groupsElements = groups;
+    this.connectedCallback()
+  }
+
+  connectedCallback() {
+    if (this.groupsElements === undefined) {
+      this.innerHTML = "Загрузка групп..."
+    }
+    else {
+      this.#createGroupsElements();
+    }
+  }
+
+  #createGroupsElements() {
+    this.innerHTML = "";
+    for (const group of this.groupsElements) {
+      const groupElement = document.createElement(GroupListItemElement.tagName);
+      groupElement.group = group;
+      this.appendChild(groupElement);
+    }
+  }
+
+  static get tagName() {
+    return "schedule-group-list";
+  }
+}
+
+class GroupListItemElement extends HTMLElement {
+  constructor() {
+    super();
+  }
+
+  set group(group) {
+    this.textContent = group.name;
+    this.addEventListener("click", () => {
+      navigatorElement.navigateToGroup(group);
+    });
+  }
+
+  static get tagName() {
+    return "schedule-group-list-item";
+  }
+}
+
+class GroupElement extends HTMLElement {
+  constructor() {
+    super();
+  }
+
+  set group(group) {
+    this.groupElement = group;
+    this.connectedCallback();
+  }
+
+  connectedCallback() {
+    if (this.groupElement === undefined) {
+      this.innerHTML = "Загрузка группы..."
+    }
+    else {
+      this.#createElement();
+    }
+  }
+
+  #createElement() {
+    this.innerHTML = "";
+    this.#initTitle();
+    this.#initDaysElement();
+  }
+
+  #initTitle() {
+    const titleElement = document.createElement("h2");
+    titleElement.textContent = this.groupElement.name;
+    this.appendChild(titleElement);
+  }
+
+  #initDaysElement() {
+    this.daysElement = document.createElement(DaysElement.tagName);
+    this.appendChild(this.daysElement);
+    this.daysElement.daysShortenings = this.groupElement.daysShortenings;
+  }
+
+  static get tagName() {
+    return "schedule-group";
+  }
 }
 
 class GroupSchedule {
@@ -35,7 +195,7 @@ class GroupSchedule {
     return this.group.getAttribute("Number");
   }
 
-  get daysShortening() {
+  get daysShortenings() {
     const dayElements = this.group.querySelectorAll("Day");
     const shortenings = [];
 
@@ -58,107 +218,38 @@ class GroupSchedule {
   }
 }
 
-class GroupsView {
-  static draw(groups) {
-    this.listElement = this.#createListElement();
-    this.groups = groups;
-
-    window.history.replaceState({
-      state: GroupsView.name
-    }, "")
-
-    this.#drawGroups();
-
-    this.show();
+class DaysElement extends HTMLElement {
+  constructor() {
+    super();
   }
 
-  static #createListElement() {
-    const listElement = document.createElement("ul");
-    listElement.classList.add("groups");
-    return listElement;
-  }
-
-  static #drawGroups() {
-    for (const group of this.groups) {
-      const listItemElement = document.createElement("li");
-      listItemElement.textContent = group.name;
-      listItemElement.addEventListener("click", () => {
-        window.history.pushState({
-          state: GroupScheduleView.name,
-          group: group.name
-        }, "")
-        this.hide();
-        GroupScheduleView.draw(group);
-      });
-      this.listElement.appendChild(listItemElement);
+  set daysShortenings(daysShortenings) {
+    for (const dayShortening of daysShortenings) {
+      this.appendChild(this.#createDay(dayShortening));
     }
   }
 
-  static show() {
-    bodyElement.appendChild(this.listElement);
-  }
-
-  static hide() {
-    if (bodyElement.contains(this.listElement)) {
-      bodyElement.removeChild(this.listElement);
-    }
-  }
-}
-
-class GroupScheduleView {
-  static draw(group) {
-    this.group = group;
-    this.element = this.#createElement();
-    this.show();
-  }
-
-  static #createElement() {
-    const element = document.createElement("div");
-    element.classList.add("schedule");
-    this.#createGroupTitle(element);
-    this.#createDays(element);
-    return element;
-  }
-
-  static #createGroupTitle(parentElement) {
-    const titleElement = document.createElement("h2");
-    titleElement.textContent = this.group.name;
-    parentElement.appendChild(titleElement);
-  }
-
-  static #createDays(parentElement) {
-    const daysElement = document.createElement("div")
-    daysElement.classList.add("days");
-
-    for (const dayShortening of this.group.daysShortening) {
-      daysElement.appendChild(this.#createDay(dayShortening));
-    }
-
-    parentElement.appendChild(daysElement);
-  }
-
-  static #createDay(dayShortening) {
+  #createDay(dayShortening) {
     const dayElement = document.createElement("button")
     dayElement.classList.add("day");
     dayElement.textContent = dayShortening;
     return dayElement;
   }
 
-  static show() {
-    bodyElement.appendChild(this.element);
-  }
-
-  static hide() {
-    if (bodyElement.contains(this.element)) {
-      bodyElement.removeChild(this.element);
-    }
+  static get tagName() {
+    return "schedule-days";
   }
 }
 
-window.addEventListener("load", async () => {
-  const schedule = await tryGetSchedule();
-  GroupsView.draw(schedule.groups);
-});
+customElements.define(NavigatorElement.tagName, NavigatorElement);
+customElements.define(GroupsListElement.tagName, GroupsListElement);
+customElements.define(GroupListItemElement.tagName, GroupListItemElement);
+customElements.define(GroupElement.tagName, GroupElement);
+customElements.define(DaysElement.tagName, DaysElement);
+
+const navigatorElement = document.createElement(NavigatorElement.tagName);
+
+bodyElement.appendChild(navigatorElement);
 
 async function tryGetSchedule() {
   const xmlString = await tryFetchScheduleXML();
@@ -188,21 +279,3 @@ function tryFetchScheduleXML() {
     };
   });
 }
-
-window.addEventListener("popstate", (event) => {
-  const { state } = event.state;
-
-  switch (state) {
-    case GroupsView.name:
-      GroupScheduleView.hide();
-      GroupsView.show();
-      break;
-    case GroupScheduleView.name:
-      GroupsView.hide();
-      const group = domParser.parseFromString(event.state.group, "text/xml");
-      GroupScheduleView.show(group);
-      break;
-    default:
-      throw new Error("Не удалось восстановить состояние истории")
-  }
-})

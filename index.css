@@ -17,25 +17,22 @@ button {
   font-style: normal;
 }
 
-.groups {
-  list-style-type: none;
-  padding-inline-start: 0;
-}
-
-.groups > li {
+schedule-group-list-item {
+  display: block;
   border-bottom: 1px solid #c4c4c4;
   padding: 10px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.schedule>h2 {
+schedule-group>h2 {
   text-align: center;
 }
 
-.days {
+schedule-days {
   display: flex;
   justify-content: center;
+  gap: 5px;
 }
 
 .day {
@@ -46,8 +43,4 @@ button {
   border-radius: 50%;
   background-color: #6a7285;
   color: #f3f3f3;
-}
-
-.day:not(:first-child) {
-  margin-left: 5px;
 }
