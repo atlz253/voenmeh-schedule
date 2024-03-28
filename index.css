@@ -3,11 +3,18 @@ body {
   font-weight: 400;
   font-style: normal;
   margin: 0;
+  background-color: #f3f3f3;
 }
 
 ul {
   margin-block-start: 0;
   margin-block-end: 0;
+}
+
+button {
+  font-family: "Roboto", sans-serif;
+  font-weight: 400;
+  font-style: normal;
 }
 
 .groups {
@@ -16,8 +23,31 @@ ul {
 }
 
 .groups > li {
-  border-bottom: 1px solid black;
+  border-bottom: 1px solid #c4c4c4;
   padding: 10px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.schedule>h2 {
+  text-align: center;
+}
+
+.days {
+  display: flex;
+  justify-content: center;
+}
+
+.day {
+  border: 0;
+  width: 35px;
+  height: 35px;
+  padding: 0;
+  border-radius: 50%;
+  background-color: #6a7285;
+  color: #f3f3f3;
+}
+
+.day:not(:first-child) {
+  margin-left: 5px;
 }
