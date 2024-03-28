@@ -1,3 +1,4 @@
+const domParser = new DOMParser();
 const bodyElement = document.querySelector("body");
 
 class Schedule {
@@ -32,6 +33,10 @@ class GroupsView {
     this.listElement = this.#createListElement();
     this.groups = groups;
 
+    window.history.replaceState({
+      state: GroupsView.name
+    }, "")
+
     this.#drawGroups();
 
     this.show();
@@ -48,6 +53,10 @@ class GroupsView {
       const listItemElement = document.createElement("li");
       listItemElement.textContent = group.Name;
       listItemElement.addEventListener("click", () => {
+        window.history.pushState({
+          state: GroupScheduleView.name,
+          group: group.Name
+        }, "")
         this.hide();
         GroupScheduleView.draw(group);
       });
@@ -60,7 +69,9 @@ class GroupsView {
   }
 
   static hide() {
-    bodyElement.removeChild(this.listElement);
+    if (bodyElement.contains(this.listElement)) {
+      bodyElement.removeChild(this.listElement);
+    }
   }
 }
 
@@ -75,6 +86,12 @@ class GroupScheduleView {
   static show() {
     bodyElement.appendChild(this.element);
   }
+
+  static hide() {
+    if (bodyElement.contains(this.element)) {
+      bodyElement.removeChild(this.element);
+    }
+  }
 }
 
 window.addEventListener("load", async () => {
@@ -83,7 +100,6 @@ window.addEventListener("load", async () => {
 });
 
 async function tryGetSchedule() {
-  const domParser = new DOMParser();
   const xmlString = await tryFetchScheduleXML();
   const xmlDocument = domParser.parseFromString(xmlString, "text/xml");
   return new Schedule(xmlDocument);
@@ -111,3 +127,21 @@ function tryFetchScheduleXML() {
     };
   });
 }
+
+window.addEventListener("popstate", (event) => {
+  const { state } = event.state;
+
+  switch (state) {
+    case GroupsView.name:
+      GroupScheduleView.hide();
+      GroupsView.show();
+      break;
+    case GroupScheduleView.name:
+      GroupsView.hide();
+      const group = domParser.parseFromString(event.state.group, "text/xml");
+      GroupScheduleView.show(group);
+      break;
+    default:
+      throw new Error("Не удалось восстановить состояние истории")
+  }
+})
