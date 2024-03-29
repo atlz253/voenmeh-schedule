@@ -16,6 +16,10 @@ const daysShortenings = Object.freeze({
   "Пятница": "ПТ",
   "Суббота": "СБ"
 });
+const weekParityButtonText = Object.freeze({
+  1: "Нечетная неделя",
+  2: "Четная неделя"
+});
 
 class NavigatorElement extends HTMLElement {
   constructor() {
@@ -124,16 +128,18 @@ class GroupListItemElement extends HTMLElement {
 
 class GroupElement extends HTMLElement {
   #currentDay;
+  #currentWeekParity;
 
   connectedCallback() {
     this.appendChild(this.#createTitleElement());
     this.appendChild(this.#createDayScheduleElement());
-    this.appendChild(this.#createDaysElement());
+    this.appendChild(this.#createPanelElement());
   }
 
   set group(group) {
     this.groupElement = group;
     this.currentDay = this.groupElement.days[0];
+    this.currentWeekParity = 1;
     this.titleElement.textContent = this.groupElement.name;
     this.#updateDaysElement();
   }
@@ -159,9 +165,34 @@ class GroupElement extends HTMLElement {
     return this.dayScheduleElement;
   }
 
+  #createPanelElement() {
+    this.panelElement = document.createElement("div");
+    this.panelElement.classList.add("panel");
+    this.panelElement.appendChild(this.#createWeekParityToggleElement());
+    this.panelElement.appendChild(this.#createDaysElement());
+    return this.panelElement;
+  }
+
   #createDaysElement() {
     this.daysElement = document.createElement(DaysElement.tagName);
     return this.daysElement;
+  }
+
+  #createWeekParityToggleElement() {
+    this.weekParityToggleElement = document.createElement("button");
+    this.weekParityToggleElement.classList.add("weekParityToggle");
+    this.weekParityToggleElement.onclick = () => this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1;
+    return this.weekParityToggleElement;
+  }
+
+  get currentWeekParity() {
+    return this.#currentWeekParity;
+  }
+
+  set currentWeekParity(parityNumber) {
+    this.#currentWeekParity = parityNumber;
+    this.weekParityToggleElement.textContent = weekParityButtonText[parityNumber];
+    this.dayScheduleElement.parity = parityNumber;
   }
 
   get currentDay() {
@@ -196,7 +227,7 @@ class DaysElement extends HTMLElement {
     this.daysElements[day].classList.add("day_active");
   }
 
-  #createDayButton({day, callback}) {
+  #createDayButton({ day, callback }) {
     const dayElement = document.createElement("button")
     dayElement.classList.add("day");
     dayElement.textContent = daysShortenings[day];
@@ -211,6 +242,8 @@ class DaysElement extends HTMLElement {
 }
 
 class DayScheduleTableElement extends HTMLTableElement {
+  #parity = 1;
+
   constructor() {
     super();
 
@@ -229,11 +262,26 @@ class DayScheduleTableElement extends HTMLTableElement {
   }
 
   set schedule(schedule) {
-    const startTime = Time.parse(schedule.oddWeek[0].time).getTimeWithMinutes(0);
-    const endTime = Time.parse(schedule.oddWeek.at(-1).time).getPlusHoursAndMinutesTime(1, 30);
+    this.scheduleObject = schedule;
+    this.#updateSchedule();
+  }
+
+  get parity() {
+    return this.#parity;
+  }
+
+  set parity(parity) {
+    this.#parity = parity;
+    this.#updateSchedule();
+  }
+
+  #updateSchedule() {
+    const weekLessons = this.parity === 1 ? this.scheduleObject.oddWeek : this.scheduleObject.evenWeek;
+    const startTime = Time.parse(weekLessons[0].time).getTimeWithMinutes(0);
+    const endTime = Time.parse(weekLessons.at(-1).time).getPlusHoursAndMinutesTime(1, 30);
     this.#createTableForSchedule(startTime, endTime);
     this.#fillTimeColumns(startTime, endTime);
-    for (const lesson of schedule.oddWeek) {
+    for (const lesson of weekLessons) {
       this.rowElements[Time.parse(lesson.time).toString()].lesson = lesson;
     }
   }
@@ -492,6 +540,18 @@ class GroupSchedule {
 class DaySchedule {
   constructor(day) {
     this.day = day;
+  }
+
+  get evenWeek() {
+    const schedule = [];
+    for (const lesson of this.#evenLessons) {
+      schedule.push(this.#parseLessonXML(lesson));
+    }
+    return schedule;
+  }
+
+  get #evenLessons() {
+    return this.#lessons.filter(lesson => lesson.querySelector("WeekCode").textContent === "2");
   }
 
   get oddWeek() {

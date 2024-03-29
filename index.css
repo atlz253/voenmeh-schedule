@@ -1,8 +1,10 @@
 html {
   --background-color: #f3f3f3;
+  --panel-background-color: #374258;
   --primary-color: #6a7285;
   --secondary-color: #f74464;
   --border-color: #c4c4c4;
+  --border-radius: 4px;
 }
 
 html,
@@ -16,7 +18,6 @@ body {
   font-style: normal;
   margin: 0;
   background-color: var(--background-color);
-  padding: 5px;
   box-sizing: border-box;
 }
 
@@ -37,6 +38,7 @@ button {
   font-family: "Roboto", sans-serif;
   font-weight: 400;
   font-style: normal;
+  padding: 0;
 }
 
 h2 {
@@ -57,14 +59,54 @@ schedule-group {
   height: 100%;
 }
 
+schedule-group>h2,
+schedule-group>.scheduleDayTable {
+  margin-top: 10px;
+}
+
 schedule-group>h2 {
   text-align: center;
+}
+
+.panel {
+  background-color: var(--panel-background-color);
+  display: flex;
+  justify-content: space-between;
+  padding: 5px;
 }
 
 schedule-days {
   display: flex;
   justify-content: center;
   gap: 5px;
+}
+
+.day,
+.weekParityToggle {
+  border: 0;
+  background-color: var(--primary-color);
+  color: var(--background-color);
+}
+
+.day {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+.day_active {
+  background-color: var(--secondary-color);
+}
+
+.weekParityToggle {
+  font-size: 14px;
+  line-height: 15px;
+  box-sizing: border-box;
+  width: 82px;
+  border-radius: var(--border-radius);
+  padding: 5px 10px;
 }
 
 .scheduleDayTable {
@@ -111,19 +153,5 @@ schedule-days {
   background-color: var(--secondary-color);
   width: 100%;
   z-index: 1;
-  border-radius: 4px;
-}
-
-.day {
-  border: 0;
-  width: 35px;
-  height: 35px;
-  padding: 0;
-  border-radius: 50%;
-  background-color: var(--primary-color);
-  color: var(--background-color);
-}
-
-.day_active {
-  background-color: var(--secondary-color);
+  border-radius: var(--border-radius);
 }
