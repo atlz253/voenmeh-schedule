@@ -1,5 +1,13 @@
 const domParser = new DOMParser();
 const bodyElement = document.querySelector("body");
+const days = Object.freeze({
+  monday: "Понедельник",
+  tuesday: "Вторник",
+  wednesday: "Среда",
+  thursday: "Четверг",
+  friday: "Пятница",
+  saturday: "Суббота"
+});
 const daysShortenings = Object.freeze({
   "Понедельник": "ПН",
   "Вторник": "ВТ",
@@ -69,28 +77,6 @@ class NavigatorElement extends HTMLElement {
 
   static get tagName() {
     return "schedule-navigator";
-  }
-}
-
-class Schedule {
-  constructor(xmlDocument) {
-    this.xmlDocument = xmlDocument;
-  }
-
-  get groups() {
-    const groupElements = this.xmlDocument.querySelectorAll("Group");
-    const groups = [];
-
-    for (const groupElement of groupElements) {
-      groups.push(new GroupSchedule(groupElement));
-    }
-
-    return groups;
-  }
-
-  getGroupByNumber(number) {
-    const xmlNode = this.xmlDocument.querySelector(`Group[Number='${number}']`);
-    return new GroupSchedule(xmlNode);
   }
 }
 
@@ -172,11 +158,179 @@ class GroupElement extends HTMLElement {
 
   #initDayScheduleElement() {
     this.dayScheduleElement = document.createElement("table", { is: DayScheduleTableElement.customComponentTagName });
+    this.dayScheduleElement.schedule = this.groupElement.getDaySchedule(days.monday)
     this.appendChild(this.dayScheduleElement);
   }
 
   static get tagName() {
     return "schedule-group";
+  }
+}
+
+class DaysElement extends HTMLElement {
+  set daysShortenings(daysShortenings) {
+    for (const dayShortening of daysShortenings) {
+      this.appendChild(this.#createDay(dayShortening));
+    }
+  }
+
+  #createDay(dayShortening) {
+    const dayElement = document.createElement("button")
+    dayElement.classList.add("day");
+    dayElement.textContent = dayShortening;
+    return dayElement;
+  }
+
+  static get tagName() {
+    return "schedule-days";
+  }
+}
+
+class DayScheduleTableElement extends HTMLTableElement {
+  ROWS_COUNT = 168;
+
+  constructor() {
+    super();
+
+    this.rowElements = [];
+    this.lessonElements = [];
+    this.body = this.#createBody();
+
+    this.classList.add("scheduleDayTable");
+  }
+
+  #createBody() {
+    const body = document.createElement("tbody");
+    for (let i = 0; i < this.ROWS_COUNT; i++) {
+      body.appendChild(this.#createRow(body));
+    }
+    this.#fillTimeColumn();
+    this.appendChild(body);
+    return body;
+  }
+
+  #createRow(tableBody) {
+    const row = document.createElement("tr", { is: DayScheduleTableRowElement.customComponentTagName })
+    this.rowElements.push(row);
+    tableBody.appendChild(row);
+    return row;
+  }
+
+  #fillTimeColumn() {
+    const dateTime = new DateTime(9, 0)
+
+    for (let i = 0; i < this.ROWS_COUNT - 1; i += 12, dateTime.plusHours(1)) {
+      this.rowElements[i].dateTimeString = dateTime.toString();
+    }
+  }
+
+  set schedule(schedule) {
+    for (const lesson of schedule.oddWeek) {
+      const [hours, minutes] = lesson.time.split(":");
+      const startRow = parseInt(hours) * 12 + parseInt(minutes) / 5 - 108;
+      this.rowElements[startRow].lesson = lesson;
+    }
+  }
+
+  static get customComponentTagName() {
+    return "schedule-day-table";
+  }
+}
+
+class DayScheduleTableRowElement extends HTMLTableRowElement {
+  constructor() {
+    super();
+
+    this.appendChild(this.#createTimeColumn());
+    this.appendChild(this.#createScheduleColumn());
+  }
+
+  connectedCallback() {
+    if (this.lessonElement !== undefined) {
+      // this.lessonElement.style.height = `${this.clientHeight * 12}px`;
+    }
+  }
+
+  #createTimeColumn() {
+    this.timeColumn = document.createElement("td");
+    this.timeColumn.classList.add("timeColumn");
+    return this.timeColumn;
+  }
+
+  #createScheduleColumn() {
+    this.scheduleColumn = document.createElement("td");
+    this.scheduleColumn.classList.add("scheduleColumn");
+    return this.scheduleColumn;
+  }
+
+  set lesson(lesson) {
+    this.lessonElement = document.createElement(LessonElement.customComponentTagName);
+    this.lessonElement.lesson = lesson;
+    this.scheduleColumn.appendChild(this.lessonElement);
+  }
+
+  set dateTimeString(dateTimeString) {
+    const timeElement = document.createElement("span");
+    timeElement.classList.add("time");
+    timeElement.textContent = dateTimeString;
+    this.timeColumn.appendChild(timeElement);
+  }
+
+  static get customComponentTagName() {
+    return "schedule-day-tr";
+  }
+}
+
+class LessonElement extends HTMLElement {
+  connectedCallback() {
+    this.classList.add("lesson");
+  }
+
+  set lesson(lesson) {
+    this.textContent = "Hello world!";
+  }
+
+  static get customComponentTagName() {
+    return "schedule-lesson";
+  }
+}
+class DateTime {
+  constructor(hours, minutes) {
+    this.date = new Date(2000, 1, 1, hours, minutes, 0);
+  }
+
+  plusHours(addend) {
+    this.date.setHours(this.hours + addend);
+  }
+
+  get hours() {
+    return this.date.getHours();
+  }
+
+  toString() {
+    return this.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+}
+
+class Schedule {
+  constructor(xmlDocument) {
+    this.xmlDocument = xmlDocument;
+  }
+
+  get groups() {
+    const groupElements = this.xmlDocument.querySelectorAll("Group");
+    const groups = [];
+
+    for (const groupElement of groupElements) {
+      groups.push(new GroupSchedule(groupElement));
+    }
+
+    return groups;
+  }
+
+  getGroupByNumber(number) {
+    const xmlNode = this.xmlDocument.querySelector(`Group[Number='${number}']`);
+    return new GroupSchedule(xmlNode);
   }
 }
 
@@ -210,119 +364,54 @@ class GroupSchedule {
       throw new Error(`Не удалось найти сокращение для дня: ${dayName}`);
     }
   }
+
+  getDaySchedule(dayName) {
+    return new DaySchedule(this.group.querySelector(`Day[Title=${dayName}]`));
+  }
 }
 
-class DaysElement extends HTMLElement {
-  set daysShortenings(daysShortenings) {
-    for (const dayShortening of daysShortenings) {
-      this.appendChild(this.#createDay(dayShortening));
+class DaySchedule {
+  constructor(day) {
+    this.day = day;
+  }
+
+  get oddWeek() {
+    const schedule = [];
+    for (const lesson of this.#oddLessons) {
+      schedule.push(this.#parseLessonXML(lesson));
     }
+    return schedule;
   }
 
-  #createDay(dayShortening) {
-    const dayElement = document.createElement("button")
-    dayElement.classList.add("day");
-    dayElement.textContent = dayShortening;
-    return dayElement;
+  get #oddLessons() {
+    return this.#lessons.filter(lesson => lesson.querySelector("WeekCode").textContent === "1");
   }
 
-  static get tagName() {
-    return "schedule-days";
-  }
-}
-
-class DayScheduleTableElement extends HTMLTableElement {
-  ROWS_COUNT = 180;
-
-  constructor() {
-    super();
-
-    this.rowElements = [];
-
-    this.classList.add("scheduleDayTable");
+  get #lessons() {
+    return [...this.day.querySelectorAll("Lesson")];
   }
 
-  connectedCallback() {
-    this.body = this.#createBody();
+  #parseLessonXML(lesson) {
+    return {
+      time: this.#parseLessonTime(lesson),
+      discipline: lesson.querySelector("Discipline").textContent,
+      lecturers: this.#parseLecturers(lesson),
+      classRoom: lesson.querySelector("Classroom").textContent
+    };
   }
 
-  #createBody() {
-    const body = document.createElement("tbody");
-    for (let i = 0; i < this.ROWS_COUNT; i++) {
-      body.appendChild(this.#createRow(body));
+  #parseLessonTime(lesson) {
+    const timeElement = lesson.querySelector("Time");
+    return timeElement.textContent.split(" ")[0];
+  }
+
+  #parseLecturers(lesson) {
+    const lecturers = [];
+    const lecturerElements = lesson.querySelectorAll("Lecturer");
+    for (const lecturerElement of lecturerElements) {
+      lecturers.push(lecturerElement.querySelector("ShortName").textContent)
     }
-    this.#fillTimeColumn();
-    this.appendChild(body);
-    return body;
-  }
-
-  #createRow(tableBody) {
-    const row = document.createElement("tr", { is: DayScheduleTableRowElement.customComponentTagName })
-    this.rowElements.push(row);
-    tableBody.appendChild(row);
-    return row;
-  }
-
-  #fillTimeColumn() {
-    const dateTime = new DateTime(9, 0)
-
-    for (let i = 11; i < this.ROWS_COUNT - 1; i += 12, dateTime.plusHours(1)) {
-      this.rowElements[i].dateTimeString = dateTime.toString();
-    }
-  }
-
-  static get customComponentTagName() {
-    return "schedule-day-table";
-  }
-}
-
-class DayScheduleTableRowElement extends HTMLTableRowElement {
-  constructor() {
-    super();
-
-    this.appendChild(this.#createTimeColumn());
-    this.appendChild(this.#createScheduleColumn());
-  }
-
-  #createTimeColumn() {
-    this.timeColumn = document.createElement("td");
-    this.timeColumn.classList.add("timeColumn");
-    return this.timeColumn;
-  }
-
-  #createScheduleColumn() {
-    this.scheduleColumn = document.createElement("td");
-    this.scheduleColumn.classList.add("scheduleColumn");
-    return this.scheduleColumn;
-  }
-
-  set dateTimeString(dateTimeString) {
-    const timeElement = document.createElement("span");
-    timeElement.classList.add("time");
-    timeElement.textContent = dateTimeString;
-    this.timeColumn.appendChild(timeElement);
-  }
-
-  static get customComponentTagName() {
-    return "schedule-day-tr";
-  }
-}
-
-class DateTime {
-  constructor(hours, minutes) {
-    this.date = new Date(2000, 1, 1, hours, minutes, 0);
-  }
-
-  plusHours(addend) {
-    this.date.setHours(this.hours + addend);
-  }
-
-  get hours() {
-    return this.date.getHours();
-  }
-
-  toString() {
-    return this.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    return lecturers;
   }
 }
 
@@ -333,6 +422,7 @@ customElements.define(GroupElement.tagName, GroupElement);
 customElements.define(DaysElement.tagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
 customElements.define(DayScheduleTableRowElement.customComponentTagName, DayScheduleTableRowElement, { extends: "tr" });
+customElements.define(LessonElement.customComponentTagName, LessonElement);
 
 const navigatorElement = document.createElement(NavigatorElement.tagName);
 
