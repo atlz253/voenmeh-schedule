@@ -247,12 +247,17 @@ class DayScheduleTableElement extends HTMLTableElement {
   constructor() {
     super();
 
-    this.rowElements = {};
-    this.lessonElements = [];
+    this.resizeObserver = this.#createResizeObserver();
 
     this.body = this.#createBody();
 
     this.classList.add("scheduleDayTable");
+  }
+
+  #createResizeObserver() {
+    const resizeObserver = new ResizeObserver(() => this.#updateLessonsHeight());
+    resizeObserver.observe(this);
+    return resizeObserver;
   }
 
   #createBody() {
@@ -264,6 +269,7 @@ class DayScheduleTableElement extends HTMLTableElement {
   set schedule(schedule) {
     this.scheduleObject = schedule;
     this.#updateSchedule();
+    this.#updateLessonsHeight();
   }
 
   get parity() {
@@ -273,6 +279,16 @@ class DayScheduleTableElement extends HTMLTableElement {
   set parity(parity) {
     this.#parity = parity;
     this.#updateSchedule();
+    this.#updateLessonsHeight();
+  }
+
+  #updateLessonsHeight() {
+    const lessons = this.querySelectorAll(LessonElement.customComponentTagName);
+
+      const rowKey = Object.keys(this.rowElements)[0];
+      for (const lesson of lessons) {
+        lesson.style.height = `${this.rowElements[rowKey].clientHeight * 12}px`;
+      }
   }
 
   #updateSchedule() {
@@ -287,6 +303,7 @@ class DayScheduleTableElement extends HTMLTableElement {
   }
 
   #createTableForSchedule(startTime, endTime) {
+    this.rowElements = {};
     this.body.innerHTML = ""; // TODO: скрывать ненужные строки
     let currentTime = startTime;
 
