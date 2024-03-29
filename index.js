@@ -95,10 +95,6 @@ class Schedule {
 }
 
 class GroupsListElement extends HTMLElement {
-  constructor() {
-    super();
-  }
-
   set groups(groups) {
     this.groupsElements = groups;
     this.connectedCallback()
@@ -128,10 +124,6 @@ class GroupsListElement extends HTMLElement {
 }
 
 class GroupListItemElement extends HTMLElement {
-  constructor() {
-    super();
-  }
-
   set group(group) {
     this.textContent = group.name;
     this.addEventListener("click", () => {
@@ -145,10 +137,6 @@ class GroupListItemElement extends HTMLElement {
 }
 
 class GroupElement extends HTMLElement {
-  constructor() {
-    super();
-  }
-
   set group(group) {
     this.groupElement = group;
     this.connectedCallback();
@@ -167,6 +155,7 @@ class GroupElement extends HTMLElement {
     this.innerHTML = "";
     this.#initTitle();
     this.#initDaysElement();
+    this.#initDayScheduleElement();
   }
 
   #initTitle() {
@@ -179,6 +168,11 @@ class GroupElement extends HTMLElement {
     this.daysElement = document.createElement(DaysElement.tagName);
     this.appendChild(this.daysElement);
     this.daysElement.daysShortenings = this.groupElement.daysShortenings;
+  }
+
+  #initDayScheduleElement() {
+    this.dayScheduleElement = document.createElement("table", { is: DayScheduleTableElement.customComponentTagName });
+    this.appendChild(this.dayScheduleElement);
   }
 
   static get tagName() {
@@ -219,10 +213,6 @@ class GroupSchedule {
 }
 
 class DaysElement extends HTMLElement {
-  constructor() {
-    super();
-  }
-
   set daysShortenings(daysShortenings) {
     for (const dayShortening of daysShortenings) {
       this.appendChild(this.#createDay(dayShortening));
@@ -241,11 +231,43 @@ class DaysElement extends HTMLElement {
   }
 }
 
+class DayScheduleTableElement extends HTMLTableElement {
+  constructor() {
+    super();
+
+    this.setAttribute("is", DayScheduleTableElement.customComponentTagName);
+  }
+
+  connectedCallback() {
+    this.body = this.#createBody();
+  }
+
+  #createBody() {
+    const body = document.createElement("tbody");
+    for (let i = 0; i < 288; i++) {
+      body.appendChild(this.#createRow(body));
+    }
+    this.appendChild(body);
+    return body;
+  }
+
+  #createRow(tableBody) {
+    const row = document.createElement("tr");
+    tableBody.appendChild(row);
+    return row;
+  }
+
+  static get customComponentTagName() {
+    return "schedule-day-table";
+  }
+}
+
 customElements.define(NavigatorElement.tagName, NavigatorElement);
 customElements.define(GroupsListElement.tagName, GroupsListElement);
 customElements.define(GroupListItemElement.tagName, GroupListItemElement);
 customElements.define(GroupElement.tagName, GroupElement);
 customElements.define(DaysElement.tagName, DaysElement);
+customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
 
 const navigatorElement = document.createElement(NavigatorElement.tagName);
 
