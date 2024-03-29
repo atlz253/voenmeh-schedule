@@ -140,8 +140,8 @@ class GroupElement extends HTMLElement {
   #createElement() {
     this.innerHTML = "";
     this.#initTitle();
-    this.#initDaysElement();
     this.#initDayScheduleElement();
+    this.#initDaysElement();
   }
 
   #initTitle() {
@@ -192,8 +192,9 @@ class DayScheduleTableElement extends HTMLTableElement {
   constructor() {
     super();
 
-    this.rowElements = [];
+    this.rowElements = {};
     this.lessonElements = [];
+
     this.body = this.#createBody();
 
     this.classList.add("scheduleDayTable");
@@ -201,35 +202,47 @@ class DayScheduleTableElement extends HTMLTableElement {
 
   #createBody() {
     const body = document.createElement("tbody");
-    for (let i = 0; i < this.ROWS_COUNT; i++) {
-      body.appendChild(this.#createRow(body));
-    }
-    this.#fillTimeColumn();
     this.appendChild(body);
     return body;
   }
 
-  #createRow(tableBody) {
-    const row = document.createElement("tr", { is: DayScheduleTableRowElement.customComponentTagName })
-    this.rowElements.push(row);
-    tableBody.appendChild(row);
-    return row;
-  }
-
-  #fillTimeColumn() {
-    const dateTime = new DateTime(9, 0)
-
-    for (let i = 0; i < this.ROWS_COUNT - 1; i += 12, dateTime.plusHours(1)) {
-      this.rowElements[i].dateTimeString = dateTime.toString();
-    }
-  }
-
   set schedule(schedule) {
+    const startTime = Time.parse(schedule.oddWeek[0].time).getTimeWithMinutes(0);
+    const endTime = Time.parse(schedule.oddWeek.at(-1).time).getPlusHoursAndMinutesTime(1, 30);
+    this.#createTableForSchedule(startTime, endTime);
+    this.#fillTimeColumns(startTime, endTime);
     for (const lesson of schedule.oddWeek) {
-      const [hours, minutes] = lesson.time.split(":");
-      const startRow = parseInt(hours) * 12 + parseInt(minutes) / 5 - 108;
-      this.rowElements[startRow].lesson = lesson;
+      this.rowElements[Time.parse(lesson.time).toString()].lesson = lesson;
     }
+  }
+
+  #createTableForSchedule(startTime, endTime) {
+    let currentTime = startTime;
+
+    while (currentTime.time <= endTime.time) {
+      this.body.appendChild(this.#createRow(currentTime.toString()));
+      currentTime = currentTime.getPlusMinutesTime(5);
+    }
+  }
+
+  #fillTimeColumns(startTime, endTime) {
+    let currentTime = startTime;
+
+    while (currentTime.getHours() <= endTime.getHours()) {
+      this.#setRowDateTimeString(currentTime.toString());
+      currentTime = currentTime.getPlusHoursTime(1);
+    }
+  }
+
+  #setRowDateTimeString(timeString) {
+    this.rowElements[timeString].dateTimeString = timeString;
+  }
+
+  #createRow(time) {
+    const row = document.createElement("tr", { is: DayScheduleTableRowElement.customComponentTagName })
+    this.rowElements[time] = row;
+    this.body.appendChild(row);
+    return row;
   }
 
   static get customComponentTagName() {
@@ -243,6 +256,8 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
 
     this.appendChild(this.#createTimeColumn());
     this.appendChild(this.#createScheduleColumn());
+
+    this.classList.add("timeRow");
   }
 
   connectedCallback() {
@@ -287,28 +302,104 @@ class LessonElement extends HTMLElement {
   }
 
   set lesson(lesson) {
+    this.lessonObject = lesson;
     this.textContent = "Hello world!";
+  }
+
+  static get dateTime() {
+    return Time.parse(this.lessonObject.time);
   }
 
   static get customComponentTagName() {
     return "schedule-lesson";
   }
 }
-class DateTime {
+
+class Time {
+  #minutes = 0;
+
   constructor(hours, minutes) {
-    this.date = new Date(2000, 1, 1, hours, minutes, 0);
+    this.#minutes = this.getDayMinutes(hours * 60 + minutes);
   }
 
-  plusHours(addend) {
-    this.date.setHours(this.hours + addend);
+  static parse(dateTimeString) {
+    const [hours, minutes] = dateTimeString.split(":");
+    return new Time(parseInt(hours), parseInt(minutes));
   }
 
-  get hours() {
-    return this.date.getHours();
+  static fromTime(time) {
+    return new Time(Math.trunc(time / 60), time % 60);
+  }
+
+  get time() {
+    return this.#minutes;
   }
 
   toString() {
-    return this.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    return `${this.#formatNumber(this.getHours())}:${this.#formatNumber(this.getMinutes())}`;
+  }
+
+  #formatNumber(number) {
+    const numberString = number.toString();
+
+    if (numberString.length === 2) {
+      return numberString;
+    }
+    else {
+      return '0' + numberString;
+    }
+  }
+
+  getTimeWithMinutes(minutes) {
+    if (minutes >= 60) {
+      return Time.fromTime(this.getHours() * 60);
+    }
+    else {
+      return Time.fromTime(this.getHours() * 60 + minutes);
+    }
+  }
+
+  getHours() {
+    return Math.trunc(this.#minutes / 60);
+  }
+
+  getTimeWithHours(hours) {
+    if (hours >= 24) {
+      return Time.fromTime(0);
+    }
+    else {
+      return Time.fromTime(hours * 60 + this.getMinutes());
+    }
+  }
+
+  getMinutes() {
+    return this.#minutes % 60;
+  }
+
+  getPlusHoursAndMinutesTime(addendHours, addendMinutes) {
+    return this.getPlusMinutesTime(addendHours * 60 + addendMinutes);
+  }
+
+  getPlusHoursTime(addend) {
+    return this.getPlusMinutesTime(addend * 60);
+  }
+
+  getPlusMinutesTime(addend) {
+    let time = this.getDayMinutes(this.#minutes + addend);
+    return Time.fromTime(time);
+  }
+
+  getDayMinutes(minutes) {
+    const minutesInDay = 24 * 60;
+    if (minutes >= minutesInDay) {
+      return minutes % minutesInDay;
+    }
+    else if (minutes < 0) {
+      return 0;
+    }
+    else {
+      return minutes;
+    }
   }
 }
 

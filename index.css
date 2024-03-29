@@ -90,6 +90,15 @@ schedule-days {
   min-width: 45px;
 }
 
+.time {
+  color: var(--primary-color);
+  position: absolute;
+  font-size: 14px;
+  line-height: 14px;
+  top: -6px;
+  left: 5px;
+}
+
 .scheduleColumn {
   position: relative;
   width: 100%;
@@ -100,15 +109,7 @@ schedule-days {
   background-color: var(--lesson-background-color);
   width: 100%;
   z-index: 1;
-}
-
-.time {
-  color: var(--primary-color);
-  position: absolute;
-  font-size: 14px;
-  line-height: 14px;
-  top: -6px;
-  left: 5px;
+  border-radius: 4px;
 }
 
 .day {
