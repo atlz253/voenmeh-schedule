@@ -232,10 +232,14 @@ class DaysElement extends HTMLElement {
 }
 
 class DayScheduleTableElement extends HTMLTableElement {
+  ROWS_COUNT = 180;
+
   constructor() {
     super();
 
-    this.setAttribute("is", DayScheduleTableElement.customComponentTagName);
+    this.rowElements = [];
+
+    this.classList.add("scheduleDayTable");
   }
 
   connectedCallback() {
@@ -244,21 +248,81 @@ class DayScheduleTableElement extends HTMLTableElement {
 
   #createBody() {
     const body = document.createElement("tbody");
-    for (let i = 0; i < 288; i++) {
+    for (let i = 0; i < this.ROWS_COUNT; i++) {
       body.appendChild(this.#createRow(body));
     }
+    this.#fillTimeColumn();
     this.appendChild(body);
     return body;
   }
 
   #createRow(tableBody) {
-    const row = document.createElement("tr");
+    const row = document.createElement("tr", { is: DayScheduleTableRowElement.customComponentTagName })
+    this.rowElements.push(row);
     tableBody.appendChild(row);
     return row;
   }
 
+  #fillTimeColumn() {
+    const dateTime = new DateTime(9, 0)
+
+    for (let i = 11; i < this.ROWS_COUNT - 1; i += 12, dateTime.plusHours(1)) {
+      this.rowElements[i].dateTimeString = dateTime.toString();
+    }
+  }
+
   static get customComponentTagName() {
     return "schedule-day-table";
+  }
+}
+
+class DayScheduleTableRowElement extends HTMLTableRowElement {
+  constructor() {
+    super();
+
+    this.appendChild(this.#createTimeColumn());
+    this.appendChild(this.#createScheduleColumn());
+  }
+
+  #createTimeColumn() {
+    this.timeColumn = document.createElement("td");
+    this.timeColumn.classList.add("timeColumn");
+    return this.timeColumn;
+  }
+
+  #createScheduleColumn() {
+    this.scheduleColumn = document.createElement("td");
+    this.scheduleColumn.classList.add("scheduleColumn");
+    return this.scheduleColumn;
+  }
+
+  set dateTimeString(dateTimeString) {
+    const timeElement = document.createElement("span");
+    timeElement.classList.add("time");
+    timeElement.textContent = dateTimeString;
+    this.timeColumn.appendChild(timeElement);
+  }
+
+  static get customComponentTagName() {
+    return "schedule-day-tr";
+  }
+}
+
+class DateTime {
+  constructor(hours, minutes) {
+    this.date = new Date(2000, 1, 1, hours, minutes, 0);
+  }
+
+  plusHours(addend) {
+    this.date.setHours(this.hours + addend);
+  }
+
+  get hours() {
+    return this.date.getHours();
+  }
+
+  toString() {
+    return this.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   }
 }
 
@@ -268,6 +332,7 @@ customElements.define(GroupListItemElement.tagName, GroupListItemElement);
 customElements.define(GroupElement.tagName, GroupElement);
 customElements.define(DaysElement.tagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
+customElements.define(DayScheduleTableRowElement.customComponentTagName, DayScheduleTableRowElement, { extends: "tr" });
 
 const navigatorElement = document.createElement(NavigatorElement.tagName);
 
