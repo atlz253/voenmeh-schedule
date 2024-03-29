@@ -255,7 +255,7 @@ class DayScheduleTableElement extends HTMLTableElement {
   }
 
   #createResizeObserver() {
-    const resizeObserver = new ResizeObserver(() => this.#updateLessonsHeight());
+    const resizeObserver = new ResizeObserver(() => this.#updateResizableObjects());
     resizeObserver.observe(this);
     return resizeObserver;
   }
@@ -269,7 +269,7 @@ class DayScheduleTableElement extends HTMLTableElement {
   set schedule(schedule) {
     this.scheduleObject = schedule;
     this.#updateSchedule();
-    this.#updateLessonsHeight();
+    this.#updateResizableObjects();
   }
 
   get parity() {
@@ -279,7 +279,12 @@ class DayScheduleTableElement extends HTMLTableElement {
   set parity(parity) {
     this.#parity = parity;
     this.#updateSchedule();
+    this.#updateResizableObjects();
+  }
+
+  #updateResizableObjects() {
     this.#updateLessonsHeight();
+    this.#updateTimePosition();
   }
 
   #updateLessonsHeight() {
@@ -289,6 +294,15 @@ class DayScheduleTableElement extends HTMLTableElement {
       for (const lesson of lessons) {
         lesson.style.height = `${this.rowElements[rowKey].clientHeight * 12}px`;
       }
+  }
+
+  #updateTimePosition() {
+    const timeElements = this.querySelectorAll(".timeRow:not(:first-child) .time")
+
+    const rowKey = Object.keys(this.rowElements)[0];
+    for (const timeElement of timeElements) {
+      timeElement.style.top = `${-5 - this.rowElements[rowKey].clientHeight}px`
+    }
   }
 
   #updateSchedule() {
@@ -346,12 +360,6 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
     this.appendChild(this.#createScheduleColumn());
 
     this.classList.add("timeRow");
-  }
-
-  connectedCallback() {
-    if (this.lessonElement !== undefined) {
-      // this.lessonElement.style.height = `${this.clientHeight * 12}px`;
-    }
   }
 
   #createTimeColumn() {
