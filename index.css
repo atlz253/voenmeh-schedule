@@ -1,7 +1,7 @@
 html {
   --background-color: #f3f3f3;
-  --lesson-background-color: #f74464;
   --primary-color: #6a7285;
+  --secondary-color: #f74464;
   --border-color: #c4c4c4;
 }
 
@@ -16,6 +16,8 @@ body {
   font-style: normal;
   margin: 0;
   background-color: var(--background-color);
+  padding: 5px;
+  box-sizing: border-box;
 }
 
 ul {
@@ -106,7 +108,7 @@ schedule-days {
 
 .lesson {
   position: absolute;
-  background-color: var(--lesson-background-color);
+  background-color: var(--secondary-color);
   width: 100%;
   z-index: 1;
   border-radius: 4px;
@@ -120,4 +122,8 @@ schedule-days {
   border-radius: 50%;
   background-color: var(--primary-color);
   color: var(--background-color);
+}
+
+.day_active {
+  background-color: var(--secondary-color);
 }

@@ -123,43 +123,54 @@ class GroupListItemElement extends HTMLElement {
 }
 
 class GroupElement extends HTMLElement {
-  set group(group) {
-    this.groupElement = group;
-    this.connectedCallback();
-  }
+  #currentDay;
 
   connectedCallback() {
-    if (this.groupElement === undefined) {
-      this.innerHTML = "Загрузка группы..."
-    }
-    else {
-      this.#createElement();
-    }
+    this.appendChild(this.#createTitleElement());
+    this.appendChild(this.#createDayScheduleElement());
+    this.appendChild(this.#createDaysElement());
   }
 
-  #createElement() {
-    this.innerHTML = "";
-    this.#initTitle();
-    this.#initDayScheduleElement();
-    this.#initDaysElement();
+  set group(group) {
+    this.groupElement = group;
+    this.currentDay = this.groupElement.days[0];
+    this.titleElement.textContent = this.groupElement.name;
+    this.#updateDaysElement();
   }
 
-  #initTitle() {
-    const titleElement = document.createElement("h2");
-    titleElement.textContent = this.groupElement.name;
-    this.appendChild(titleElement);
+  #updateDaysElement() {
+    this.daysElement.days = this.groupElement.days.map(day => ({
+      day,
+      callback: () => {
+        this.currentDay = day
+        this.daysElement.currentDay = day;
+      }
+    }))
+    this.daysElement.currentDay = this.currentDay;
   }
 
-  #initDaysElement() {
-    this.daysElement = document.createElement(DaysElement.tagName);
-    this.appendChild(this.daysElement);
-    this.daysElement.daysShortenings = this.groupElement.daysShortenings;
+  #createTitleElement() {
+    this.titleElement = document.createElement("h2");
+    return this.titleElement;
   }
 
-  #initDayScheduleElement() {
+  #createDayScheduleElement() {
     this.dayScheduleElement = document.createElement("table", { is: DayScheduleTableElement.customComponentTagName });
-    this.dayScheduleElement.schedule = this.groupElement.getDaySchedule(days.monday)
-    this.appendChild(this.dayScheduleElement);
+    return this.dayScheduleElement;
+  }
+
+  #createDaysElement() {
+    this.daysElement = document.createElement(DaysElement.tagName);
+    return this.daysElement;
+  }
+
+  get currentDay() {
+    return this.#currentDay;
+  }
+
+  set currentDay(currentDay) {
+    this.dayScheduleElement.schedule = this.groupElement.getDaySchedule(currentDay);
+    this.#currentDay = currentDay;
   }
 
   static get tagName() {
@@ -168,16 +179,29 @@ class GroupElement extends HTMLElement {
 }
 
 class DaysElement extends HTMLElement {
-  set daysShortenings(daysShortenings) {
-    for (const dayShortening of daysShortenings) {
-      this.appendChild(this.#createDay(dayShortening));
+  set days(days) {
+    this.daysElements = {};
+    for (const day of days) {
+      this.appendChild(this.#createDayButton(day));
     }
   }
 
-  #createDay(dayShortening) {
+  set currentDay(day) {
+    const previousActiveDay = this.querySelector(".day_active");
+
+    if (previousActiveDay !== null) {
+      previousActiveDay.classList.remove("day_active");
+    }
+
+    this.daysElements[day].classList.add("day_active");
+  }
+
+  #createDayButton({day, callback}) {
     const dayElement = document.createElement("button")
     dayElement.classList.add("day");
-    dayElement.textContent = dayShortening;
+    dayElement.textContent = daysShortenings[day];
+    dayElement.onclick = callback;
+    this.daysElements[day] = dayElement;
     return dayElement;
   }
 
@@ -187,8 +211,6 @@ class DaysElement extends HTMLElement {
 }
 
 class DayScheduleTableElement extends HTMLTableElement {
-  ROWS_COUNT = 168;
-
   constructor() {
     super();
 
@@ -217,6 +239,7 @@ class DayScheduleTableElement extends HTMLTableElement {
   }
 
   #createTableForSchedule(startTime, endTime) {
+    this.body.innerHTML = ""; // TODO: скрывать ненужные строки
     let currentTime = startTime;
 
     while (currentTime.time <= endTime.time) {
@@ -435,25 +458,30 @@ class GroupSchedule {
   }
 
   get daysShortenings() {
-    const dayElements = this.group.querySelectorAll("Day");
+    const dayNames = this.days;
     const shortenings = [];
-
-    for (const dayElement of dayElements) {
-      shortenings.push(this.#getDayShortening(dayElement))
+    for (const day of dayNames) {
+      shortenings.push(this.#getDayShortening(day))
     }
-
     return shortenings;
   }
 
-  #getDayShortening(dayElement) {
-    const dayName = dayElement.getAttribute("Title");
-
-    if (daysShortenings[dayName] !== undefined) {
-      return daysShortenings[dayName];
+  #getDayShortening(day) {
+    if (daysShortenings[day] !== undefined) {
+      return daysShortenings[day];
     }
     else {
-      throw new Error(`Не удалось найти сокращение для дня: ${dayName}`);
+      throw new Error(`Не удалось найти сокращение для дня: ${day}`);
     }
+  }
+
+  get days() {
+    const dayElements = this.group.querySelectorAll("Day");
+    const dayNames = [];
+    for (const dayElement of dayElements) {
+      dayNames.push(dayElement.getAttribute("Title"));
+    }
+    return dayNames;
   }
 
   getDaySchedule(dayName) {
