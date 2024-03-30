@@ -148,10 +148,21 @@ schedule-days {
   width: 100%;
 }
 
-.lesson {
+schedule-lesson {
   position: absolute;
   background-color: var(--secondary-color);
   width: 100%;
   z-index: 1;
   border-radius: var(--border-radius);
+  padding: 5px;
+  box-sizing: border-box;
+  color: var(--background-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+schedule-lesson>div {
+  display: flex;
+  justify-content: space-between;
 }

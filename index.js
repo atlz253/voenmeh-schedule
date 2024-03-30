@@ -290,10 +290,10 @@ class DayScheduleTableElement extends HTMLTableElement {
   #updateLessonsHeight() {
     const lessons = this.querySelectorAll(LessonElement.customComponentTagName);
 
-      const rowKey = Object.keys(this.rowElements)[0];
-      for (const lesson of lessons) {
-        lesson.style.height = `${this.rowElements[rowKey].clientHeight * 12}px`;
-      }
+    const rowKey = Object.keys(this.rowElements)[0];
+    for (const lesson of lessons) {
+      lesson.style.height = `${this.rowElements[rowKey].clientHeight * 12}px`;
+    }
   }
 
   #updateTimePosition() {
@@ -394,12 +394,44 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
 
 class LessonElement extends HTMLElement {
   connectedCallback() {
-    this.classList.add("lesson");
+    this.appendChild(this.#createTimeAndClassRoomElement());
+    this.appendChild(this.#createDisciplineElement());
+    this.appendChild(this.#createLecturersElement());
+  }
+
+  #createTimeAndClassRoomElement() {
+    this.timeAndClassRoomElement = document.createElement("div");
+    this.timeAndClassRoomElement.appendChild(this.#createTimeElement());
+    this.timeAndClassRoomElement.appendChild(this.#createClassRoomElement());
+    return this.timeAndClassRoomElement;
+  }
+
+  #createTimeElement() {
+    this.timeElement = document.createElement("div");
+    this.timeElement.textContent = `${this.lessonObject.time} - ${Time.parse(this.lessonObject.time).getPlusHoursAndMinutesTime(1, 30)}`;
+    return this.timeElement;
+  }
+
+  #createDisciplineElement() {
+    this.disciplineElement = document.createElement("div");
+    this.disciplineElement.textContent = this.lessonObject.discipline;
+    return this.disciplineElement;
+  }
+
+  #createClassRoomElement() {
+    this.classRoomElement = document.createElement("div");
+    this.classRoomElement.textContent = this.lessonObject.classRoom;
+    return this.classRoomElement;
+  }
+
+  #createLecturersElement() {
+    this.lecturersElement = document.createElement("div");
+    this.lecturersElement.textContent = this.lessonObject.lecturers.join(", ");
+    return this.lecturersElement;
   }
 
   set lesson(lesson) {
     this.lessonObject = lesson;
-    this.textContent = "Hello world!";
   }
 
   static get dateTime() {
