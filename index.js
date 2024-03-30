@@ -297,6 +297,10 @@ class DayScheduleTableElement extends HTMLTableElement {
     }
 
     const weekLessons = this.parity === 1 ? this.scheduleObject.oddWeek : this.scheduleObject.evenWeek;
+    if (weekLessons.length === 0) {
+      this.body.innerHTML = "В этот день нет занятий";
+      return;
+    }
     const startTime = Time.parse(weekLessons[0].time).getTimeWithMinutes(0);
     const endTime = Time.parse(weekLessons.at(-1).time).getPlusHoursAndMinutesTime(1, 30);
     this.#createTableForSchedule(startTime, endTime);
