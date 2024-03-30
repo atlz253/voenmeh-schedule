@@ -32,11 +32,11 @@ class NavigatorElement extends HTMLElement {
       const { element } = event.state;
 
       switch (element) {
-        case GroupsListElement.tagName:
+        case GroupsListElement.customComponentTagName:
           this.removeChild(this.groupElement);
           this.appendChild(this.groupsElement);
           break;
-        case GroupElement.tagName:
+        case GroupElement.customComponentTagName:
           const { group } = event.state;
           this.#setGroupElement(this.schedule.getGroupByNumber(group));
           break;
@@ -48,10 +48,10 @@ class NavigatorElement extends HTMLElement {
 
   connectedCallback() {
     window.history.replaceState({
-      element: GroupsListElement.tagName
+      element: GroupsListElement.customComponentTagName
     }, "");
 
-    this.groupsElement = elementBuilder.build({ tagName: GroupsListElement.tagName, parent: this });
+    this.groupsElement = elementBuilder.build({ tagName: GroupsListElement.customComponentTagName, parent: this });
 
     this.#tryGetSchedule();
   }
@@ -63,7 +63,7 @@ class NavigatorElement extends HTMLElement {
 
   navigateToGroup(group) {
     window.history.pushState({
-      element: GroupElement.tagName,
+      element: GroupElement.customComponentTagName,
       group: group.name
     }, "")
 
@@ -72,10 +72,10 @@ class NavigatorElement extends HTMLElement {
 
   #setGroupElement(group) {
     this.removeChild(this.groupsElement);
-    this.groupElement = elementBuilder.build({ tagName: GroupElement.tagName, parent: this, fields: { group } });
+    this.groupElement = elementBuilder.build({ tagName: GroupElement.customComponentTagName, parent: this, fields: { group } });
   }
 
-  static get tagName() {
+  static get customComponentTagName() {
     return "schedule-navigator";
   }
 }
@@ -98,11 +98,11 @@ class GroupsListElement extends HTMLElement {
   #createGroupsElements() {
     this.innerHTML = "";
     for (const group of this.groupsElements) {
-      elementBuilder.build({ tagName: GroupListItemElement.tagName, parent: this, fields: { group } });
+      elementBuilder.build({ tagName: GroupListItemElement.customComponentTagName, parent: this, fields: { group } });
     }
   }
 
-  static get tagName() {
+  static get customComponentTagName() {
     return "schedule-group-list";
   }
 }
@@ -113,7 +113,7 @@ class GroupListItemElement extends HTMLElement {
     this.onclick = () => navigatorElement.navigateToGroup(group);
   }
 
-  static get tagName() {
+  static get customComponentTagName() {
     return "schedule-group-list-item";
   }
 }
@@ -128,7 +128,7 @@ class GroupElement extends HTMLElement {
     this.titleElement = elementBuilder.build({ tagName: "h2" });
     this.weekParityToggleElement = elementBuilder.build({ prototype: elementsPrototypes.weekParityToggle, onclick: () => this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1 });
     this.dayScheduleElement = elementBuilder.build({ prototype: elementsPrototypes.daySchedule, fields: { parity: this.currentWeekParity } });
-    this.daysElement = elementBuilder.build({ tagName: DaysElement.tagName });
+    this.daysElement = elementBuilder.build({ tagName: DaysElement.customComponentTagName });
     this.panelElement = elementBuilder.build({ prototype: elementsPrototypes.panel, children: [this.weekParityToggleElement, this.daysElement] });
   }
 
@@ -176,7 +176,7 @@ class GroupElement extends HTMLElement {
     this.#currentDay = currentDay;
   }
 
-  static get tagName() {
+  static get customComponentTagName() {
     return "schedule-group";
   }
 }
@@ -220,7 +220,7 @@ class DaysElement extends HTMLElement {
     }
   }
 
-  static get tagName() {
+  static get customComponentTagName() {
     return "schedule-days";
   }
 }
@@ -643,16 +643,16 @@ class elementBuilder {
   }
 }
 
-customElements.define(NavigatorElement.tagName, NavigatorElement);
-customElements.define(GroupsListElement.tagName, GroupsListElement);
-customElements.define(GroupListItemElement.tagName, GroupListItemElement);
-customElements.define(GroupElement.tagName, GroupElement);
-customElements.define(DaysElement.tagName, DaysElement);
+customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
+customElements.define(GroupsListElement.customComponentTagName, GroupsListElement);
+customElements.define(GroupListItemElement.customComponentTagName, GroupListItemElement);
+customElements.define(GroupElement.customComponentTagName, GroupElement);
+customElements.define(DaysElement.customComponentTagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
 customElements.define(DayScheduleTableRowElement.customComponentTagName, DayScheduleTableRowElement, { extends: "tr" });
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
-const navigatorElement = elementBuilder.build({ tagName: NavigatorElement.tagName });
+const navigatorElement = elementBuilder.build({ tagName: NavigatorElement.customComponentTagName });
 
 bodyElement.appendChild(navigatorElement);
 
