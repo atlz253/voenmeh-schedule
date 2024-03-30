@@ -363,11 +363,11 @@ class LessonElement extends HTMLElement {
     elementBuilder.build({
       parent: this, children: [
         elementBuilder.build({ textContent: this.#getLessonIntervalString(this.lessonObject.time) }),
-        elementBuilder.build({ textContent: this.lessonObject.discipline })
+        elementBuilder.build({ textContent: this.lessonObject.classRoom })
       ]
     });
     elementBuilder.build({ parent: this, textContent: this.lessonObject.discipline });
-    elementBuilder.build({ parent: this, textContent: this.lessonObject.classRoom });
+    elementBuilder.build({ parent: this, textContent: this.lessonObject.lecturers.join(", ") });
   }
 
   #getLessonIntervalString(lessonStartTime) {
