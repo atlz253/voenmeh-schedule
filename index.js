@@ -292,7 +292,7 @@ class DayScheduleTableElement extends HTMLTableElement {
 
     const rowKey = Object.keys(this.rowElements)[0];
     for (const lesson of lessons) {
-      lesson.style.height = `${this.rowElements[rowKey].clientHeight * 12}px`;
+      lesson.style.height = `${this.rowElements[rowKey].clientHeight * 18}px`;
     }
   }
 
