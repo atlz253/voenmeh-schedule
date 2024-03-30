@@ -51,9 +51,7 @@ class NavigatorElement extends HTMLElement {
       element: GroupsListElement.tagName
     }, "");
 
-
-    this.groupsElement = document.createElement(GroupsListElement.tagName);
-    this.appendChild(this.groupsElement);
+    this.groupsElement = elementBuilder.build({ tagName: GroupsListElement.tagName, parent: this });
 
     this.#tryGetSchedule();
   }
@@ -73,10 +71,8 @@ class NavigatorElement extends HTMLElement {
   }
 
   #setGroupElement(group) {
-    this.groupElement = document.createElement(GroupElement.tagName);
     this.removeChild(this.groupsElement);
-    this.appendChild(this.groupElement);
-    this.groupElement.group = group;
+    this.groupElement = elementBuilder.build({ tagName: GroupElement.tagName, parent: this, fields: { group } });
   }
 
   static get tagName() {
@@ -102,9 +98,7 @@ class GroupsListElement extends HTMLElement {
   #createGroupsElements() {
     this.innerHTML = "";
     for (const group of this.groupsElements) {
-      const groupElement = document.createElement(GroupListItemElement.tagName);
-      groupElement.group = group;
-      this.appendChild(groupElement);
+      elementBuilder.build({ tagName: GroupListItemElement.tagName, parent: this, fields: { group } });
     }
   }
 
@@ -116,9 +110,7 @@ class GroupsListElement extends HTMLElement {
 class GroupListItemElement extends HTMLElement {
   set group(group) {
     this.textContent = group.name;
-    this.addEventListener("click", () => {
-      navigatorElement.navigateToGroup(group);
-    });
+    this.onclick = () => navigatorElement.navigateToGroup(group);
   }
 
   static get tagName() {
@@ -128,19 +120,29 @@ class GroupListItemElement extends HTMLElement {
 
 class GroupElement extends HTMLElement {
   #currentDay;
-  #currentWeekParity;
+  #currentWeekParity = 1;
+
+  constructor() {
+    super();
+
+    this.titleElement = elementBuilder.build({ tagName: "h2" });
+    this.weekParityToggleElement = elementBuilder.build({ prototype: elementsPrototypes.weekParityToggle, onclick: () => this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1 });
+    this.dayScheduleElement = elementBuilder.build({ prototype: elementsPrototypes.daySchedule, fields: { parity: this.currentWeekParity } });
+    this.daysElement = elementBuilder.build({ tagName: DaysElement.tagName });
+    this.panelElement = elementBuilder.build({ prototype: elementsPrototypes.panel, children: [this.weekParityToggleElement, this.daysElement] });
+  }
 
   connectedCallback() {
-    this.appendChild(this.#createTitleElement());
-    this.appendChild(this.#createDayScheduleElement());
-    this.appendChild(this.#createPanelElement());
+    this.appendChild(this.titleElement);
+    this.appendChild(this.dayScheduleElement);
+    this.appendChild(this.panelElement);
   }
 
   set group(group) {
     this.groupElement = group;
+    this.titleElement.textContent = group.name;
     this.currentDay = this.groupElement.days[0];
     this.currentWeekParity = 1;
-    this.titleElement.textContent = this.groupElement.name;
     this.#updateDaysElement();
   }
 
@@ -153,36 +155,6 @@ class GroupElement extends HTMLElement {
       }
     }))
     this.daysElement.currentDay = this.currentDay;
-  }
-
-  #createTitleElement() {
-    this.titleElement = document.createElement("h2");
-    return this.titleElement;
-  }
-
-  #createDayScheduleElement() {
-    this.dayScheduleElement = document.createElement("table", { is: DayScheduleTableElement.customComponentTagName });
-    return this.dayScheduleElement;
-  }
-
-  #createPanelElement() {
-    this.panelElement = document.createElement("div");
-    this.panelElement.classList.add("panel");
-    this.panelElement.appendChild(this.#createWeekParityToggleElement());
-    this.panelElement.appendChild(this.#createDaysElement());
-    return this.panelElement;
-  }
-
-  #createDaysElement() {
-    this.daysElement = document.createElement(DaysElement.tagName);
-    return this.daysElement;
-  }
-
-  #createWeekParityToggleElement() {
-    this.weekParityToggleElement = document.createElement("button");
-    this.weekParityToggleElement.classList.add("weekParityToggle");
-    this.weekParityToggleElement.onclick = () => this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1;
-    return this.weekParityToggleElement;
   }
 
   get currentWeekParity() {
@@ -210,30 +182,42 @@ class GroupElement extends HTMLElement {
 }
 
 class DaysElement extends HTMLElement {
-  set days(days) {
-    this.daysElements = {};
-    for (const day of days) {
-      this.appendChild(this.#createDayButton(day));
+  #currentDay;
+  #daysElements = {};
+
+  connectedCallback() {
+    this.#daysElements = {};
+    for (const { day, callback } of this.daysObjects) {
+      this.#daysElements[day] = elementBuilder.build({ prototype: elementsPrototypes.day, parent: this, textContent: daysShortenings[day], onclick: callback });
     }
+    this.#updateActiveDay();
+  }
+
+  set days(days) {
+    this.daysObjects = days;
+  }
+
+  get currentDay() {
+    return this.#currentDay;
   }
 
   set currentDay(day) {
+    this.#currentDay = day;
+    this.#updateActiveDay();
+  }
+
+  #updateActiveDay() {
     const previousActiveDay = this.querySelector(".day_active");
 
     if (previousActiveDay !== null) {
       previousActiveDay.classList.remove("day_active");
     }
 
-    this.daysElements[day].classList.add("day_active");
-  }
+    const currentActiveDay = this.#daysElements[this.currentDay];
 
-  #createDayButton({ day, callback }) {
-    const dayElement = document.createElement("button")
-    dayElement.classList.add("day");
-    dayElement.textContent = daysShortenings[day];
-    dayElement.onclick = callback;
-    this.daysElements[day] = dayElement;
-    return dayElement;
+    if (currentActiveDay !== undefined) {
+      this.#daysElements[this.currentDay].classList.add("day_active");
+    }
   }
 
   static get tagName() {
@@ -249,7 +233,7 @@ class DayScheduleTableElement extends HTMLTableElement {
 
     this.resizeObserver = this.#createResizeObserver();
 
-    this.body = this.#createBody();
+    this.body = elementBuilder.build({ tagName: "tbody", parent: this });
 
     this.classList.add("scheduleDayTable");
   }
@@ -258,12 +242,6 @@ class DayScheduleTableElement extends HTMLTableElement {
     const resizeObserver = new ResizeObserver(() => this.#updateResizableObjects());
     resizeObserver.observe(this);
     return resizeObserver;
-  }
-
-  #createBody() {
-    const body = document.createElement("tbody");
-    this.appendChild(body);
-    return body;
   }
 
   set schedule(schedule) {
@@ -290,6 +268,10 @@ class DayScheduleTableElement extends HTMLTableElement {
   #updateLessonsHeight() {
     const lessons = this.querySelectorAll(LessonElement.customComponentTagName);
 
+    if (this.rowElements === undefined) {
+      return;
+    }
+
     const rowKey = Object.keys(this.rowElements)[0];
     for (const lesson of lessons) {
       lesson.style.height = `${this.rowElements[rowKey].clientHeight * 18}px`;
@@ -299,6 +281,10 @@ class DayScheduleTableElement extends HTMLTableElement {
   #updateTimePosition() {
     const timeElements = this.querySelectorAll(".timeRow:not(:first-child) .time")
 
+    if (this.rowElements === undefined) {
+      return;
+    }
+
     const rowKey = Object.keys(this.rowElements)[0];
     for (const timeElement of timeElements) {
       timeElement.style.top = `${-5 - this.rowElements[rowKey].clientHeight}px`
@@ -306,6 +292,10 @@ class DayScheduleTableElement extends HTMLTableElement {
   }
 
   #updateSchedule() {
+    if (this.scheduleObject === undefined) {
+      return;
+    }
+
     const weekLessons = this.parity === 1 ? this.scheduleObject.oddWeek : this.scheduleObject.evenWeek;
     const startTime = Time.parse(weekLessons[0].time).getTimeWithMinutes(0);
     const endTime = Time.parse(weekLessons.at(-1).time).getPlusHoursAndMinutesTime(1, 30);
@@ -322,7 +312,7 @@ class DayScheduleTableElement extends HTMLTableElement {
     let currentTime = startTime;
 
     while (currentTime.time <= endTime.time) {
-      this.body.appendChild(this.#createRow(currentTime.toString()));
+      this.rowElements[currentTime.toString()] = elementBuilder.build({ tagName: "tr", is: DayScheduleTableRowElement.customComponentTagName, parent: this.body })
       currentTime = currentTime.getPlusMinutesTime(5);
     }
   }
@@ -340,13 +330,6 @@ class DayScheduleTableElement extends HTMLTableElement {
     this.rowElements[timeString].dateTimeString = timeString;
   }
 
-  #createRow(time) {
-    const row = document.createElement("tr", { is: DayScheduleTableRowElement.customComponentTagName })
-    this.rowElements[time] = row;
-    this.body.appendChild(row);
-    return row;
-  }
-
   static get customComponentTagName() {
     return "schedule-day-table";
   }
@@ -356,35 +339,18 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
   constructor() {
     super();
 
-    this.appendChild(this.#createTimeColumn());
-    this.appendChild(this.#createScheduleColumn());
+    this.timeColumn = elementBuilder.build({ tagName: "td", classList: ["timeColumn"], parent: this });
+    this.scheduleColumn = elementBuilder.build({ tagName: "td", classList: ["scheduleColumn"], parent: this });
 
     this.classList.add("timeRow");
   }
 
-  #createTimeColumn() {
-    this.timeColumn = document.createElement("td");
-    this.timeColumn.classList.add("timeColumn");
-    return this.timeColumn;
-  }
-
-  #createScheduleColumn() {
-    this.scheduleColumn = document.createElement("td");
-    this.scheduleColumn.classList.add("scheduleColumn");
-    return this.scheduleColumn;
-  }
-
   set lesson(lesson) {
-    this.lessonElement = document.createElement(LessonElement.customComponentTagName);
-    this.lessonElement.lesson = lesson;
-    this.scheduleColumn.appendChild(this.lessonElement);
+    this.lessonElement = elementBuilder.build({ tagName: LessonElement.customComponentTagName, fields: { lesson }, parent: this.scheduleColumn });
   }
 
-  set dateTimeString(dateTimeString) {
-    const timeElement = document.createElement("span");
-    timeElement.classList.add("time");
-    timeElement.textContent = dateTimeString;
-    this.timeColumn.appendChild(timeElement);
+  set dateTimeString(timeString) {
+    elementBuilder.build({ tagName: "span", classList: ["time"], textContent: timeString, parent: this.timeColumn });
   }
 
   static get customComponentTagName() {
@@ -394,40 +360,18 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
 
 class LessonElement extends HTMLElement {
   connectedCallback() {
-    this.appendChild(this.#createTimeAndClassRoomElement());
-    this.appendChild(this.#createDisciplineElement());
-    this.appendChild(this.#createLecturersElement());
+    elementBuilder.build({
+      parent: this, children: [
+        elementBuilder.build({ textContent: this.#getLessonIntervalString(this.lessonObject.time) }),
+        elementBuilder.build({ textContent: this.lessonObject.discipline })
+      ]
+    });
+    elementBuilder.build({ parent: this, textContent: this.lessonObject.discipline });
+    elementBuilder.build({ parent: this, textContent: this.lessonObject.classRoom });
   }
 
-  #createTimeAndClassRoomElement() {
-    this.timeAndClassRoomElement = document.createElement("div");
-    this.timeAndClassRoomElement.appendChild(this.#createTimeElement());
-    this.timeAndClassRoomElement.appendChild(this.#createClassRoomElement());
-    return this.timeAndClassRoomElement;
-  }
-
-  #createTimeElement() {
-    this.timeElement = document.createElement("div");
-    this.timeElement.textContent = `${this.lessonObject.time} - ${Time.parse(this.lessonObject.time).getPlusHoursAndMinutesTime(1, 30)}`;
-    return this.timeElement;
-  }
-
-  #createDisciplineElement() {
-    this.disciplineElement = document.createElement("div");
-    this.disciplineElement.textContent = this.lessonObject.discipline;
-    return this.disciplineElement;
-  }
-
-  #createClassRoomElement() {
-    this.classRoomElement = document.createElement("div");
-    this.classRoomElement.textContent = this.lessonObject.classRoom;
-    return this.classRoomElement;
-  }
-
-  #createLecturersElement() {
-    this.lecturersElement = document.createElement("div");
-    this.lecturersElement.textContent = this.lessonObject.lecturers.join(", ");
-    return this.lecturersElement;
+  #getLessonIntervalString(lessonStartTime) {
+    return `${lessonStartTime} - ${Time.parse(lessonStartTime).getPlusHoursAndMinutesTime(1, 30)}`;
   }
 
   set lesson(lesson) {
@@ -632,7 +576,7 @@ class DaySchedule {
       time: this.#parseLessonTime(lesson),
       discipline: lesson.querySelector("Discipline").textContent,
       lecturers: this.#parseLecturers(lesson),
-      classRoom: lesson.querySelector("Classroom").textContent
+      classRoom: lesson.querySelector("Classroom").textContent.trim().slice(0, -1)
     };
   }
 
@@ -651,6 +595,54 @@ class DaySchedule {
   }
 }
 
+const elementsPrototypes = Object.freeze({
+  weekParityToggle: Object.freeze({ tagName: "button", classList: ["weekParityToggle"], textContent: weekParityButtonText[this.currentWeekParity] }),
+  daySchedule: Object.freeze({ tagName: "table", is: DayScheduleTableElement.customComponentTagName }),
+  panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
+  day: Object.freeze({ tagName: "button", classList: ["day"] })
+});
+
+class elementBuilder {
+  static build({ prototype, ...props } = { tagName: "div" }) {
+    if (prototype === undefined) {
+      prototype = {};
+    }
+    const { tagName, is, classList, parent, fields, children, onclick, textContent } = { ...{ tagName: "div" }, ...prototype, ...props };
+    const element = document.createElement(tagName, { is });
+    element.onclick = onclick;
+    this.#setClassList(element, classList);
+    this.#setTextContent(element, textContent);
+    this.#setFields(element, fields);
+    parent?.appendChild(element);
+    this.#setChildren(element, children);
+    return element;
+  }
+
+  static #setClassList(element, classList = []) {
+    if (classList.length !== 0) {
+      element.classList.add(...classList);
+    }
+  }
+
+  static #setTextContent(element, textContent = "") {
+    if (textContent.length !== 0) {
+      element.textContent = textContent;
+    }
+  }
+
+  static #setFields(element, fields = {}) {
+    for (const [key, value] of Object.entries(fields)) {
+      element[key] = value;
+    }
+  }
+
+  static #setChildren(element, children = []) {
+    for (const child of children) {
+      element.appendChild(child);
+    }
+  }
+}
+
 customElements.define(NavigatorElement.tagName, NavigatorElement);
 customElements.define(GroupsListElement.tagName, GroupsListElement);
 customElements.define(GroupListItemElement.tagName, GroupListItemElement);
@@ -660,7 +652,7 @@ customElements.define(DayScheduleTableElement.customComponentTagName, DaySchedul
 customElements.define(DayScheduleTableRowElement.customComponentTagName, DayScheduleTableRowElement, { extends: "tr" });
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
-const navigatorElement = document.createElement(NavigatorElement.tagName);
+const navigatorElement = elementBuilder.build({ tagName: NavigatorElement.tagName });
 
 bodyElement.appendChild(navigatorElement);
 
