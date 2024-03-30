@@ -485,10 +485,16 @@ class Schedule {
     const groups = [];
 
     for (const groupElement of groupElements) {
-      groups.push(new GroupSchedule(groupElement));
+      if (!this.#isGroupElementScheduleEmpty(groupElement)) {
+        groups.push(new GroupSchedule(groupElement));
+      }
     }
 
     return groups;
+  }
+
+  #isGroupElementScheduleEmpty(groupElement) {
+    return groupElement.childElementCount === 0;
   }
 
   getGroupByNumber(number) {
