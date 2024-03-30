@@ -10,6 +10,7 @@ html {
 html,
 body {
   height: 100%;
+  height: 100dvh;
 }
 
 body {
@@ -72,7 +73,7 @@ schedule-group>h2 {
   background-color: var(--panel-background-color);
   display: flex;
   justify-content: space-between;
-  padding: 5px;
+  padding: 10px 5px;
 }
 
 schedule-days {
