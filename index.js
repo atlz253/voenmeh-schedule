@@ -1,151 +1,63 @@
-const domParser = new DOMParser();
-const bodyElement = document.querySelector("body");
-const days = Object.freeze({
-  monday: "Понедельник",
-  tuesday: "Вторник",
-  wednesday: "Среда",
-  thursday: "Четверг",
-  friday: "Пятница",
-  saturday: "Суббота"
-});
-const daysShortenings = Object.freeze({
-  "Понедельник": "ПН",
-  "Вторник": "ВТ",
-  "Среда": "СР",
-  "Четверг": "ЧТ",
-  "Пятница": "ПТ",
-  "Суббота": "СБ"
-});
-const weekParityButtonText = Object.freeze({
-  1: "Нечетная неделя",
-  2: "Четная неделя"
-});
-
 class NavigatorElement extends HTMLElement {
   constructor() {
     super();
 
-    this.groupsElement = elementBuilder.build({ tagName: GroupsListElement.customComponentTagName });
+    this.groupsElement = elementBuilder.build({ tagName: "ul", classList: ["list"] });
+    this.loaderElement = elementBuilder.build({ textContent: "Загрузка..." });
 
-    this.#addHistoryChangeListener();
-  }
-
-  #addHistoryChangeListener() {
-    window.addEventListener("popstate", (event) => {
-      const { element } = event.state;
-
-      switch (element) {
-        case GroupsListElement.customComponentTagName:
-          this.removeChild(this.groupElement);
-          this.appendChild(this.groupsElement);
-          break;
-        case GroupElement.customComponentTagName:
-          const { group } = event.state;
-          this.#setGroupElement(this.schedule.getGroupByNumber(group));
-          break;
-        default:
-          throw new Error("Не удалось восстановить состояние истории")
-      }
-    })
+    window.addEventListener("popstate", (event) => this.#changeState(event.state));
   }
 
   connectedCallback() {
-    window.history.replaceState({
-      element: GroupsListElement.customComponentTagName
-    }, "");
-
-    this.appendChild(this.groupsElement);
-
-    this.#tryGetSchedule();
+    this.appendChild(this.loaderElement);
+    this.#tryGetGroupsSchedule();
   }
 
-  async #tryGetSchedule() {
+  async #tryGetGroupsSchedule() {
     this.schedule = await tryGetSchedule();
-    this.groupsElement.groups = this.schedule.groups;
+    for (const group of this.schedule.groups) {
+      elementBuilder.build({ prototype: elementsPrototypes.groupListItem, parent: this.groupsElement, data: { group: group.name }, onclick: () => this.navigateToGroupWithName(group.name) });
+    }
+    this.navigateToGroupsList();
   }
 
-  navigateToGroup(groupName) {
-    window.history.pushState({
-      element: GroupElement.customComponentTagName,
-      group: groupName
-    }, "")
-
-    this.#setGroupElement(this.schedule.getGroupByNumber(groupName));
+  navigateToGroupsList() {
+    const state = {
+      state: navigatorStates.groupsList
+    };
+    window.history.replaceState(state, "");
+    this.#changeState(state);
   }
 
-  #setGroupElement(group) {
-    this.removeChild(this.groupsElement);
-    this.groupElement = elementBuilder.build({ tagName: GroupElement.customComponentTagName, parent: this, fields: { group } });
+  navigateToGroupWithName(name) {
+    const state = {
+      state: navigatorStates.group,
+      name
+    }
+    window.history.pushState(state, "");
+    this.#changeState(state);
+  }
+
+  #changeState(stateInfo) {
+    const { state } = stateInfo;
+
+    this.innerHTML = "";
+
+    switch (state) {
+      case navigatorStates.groupsList:
+        this.appendChild(this.groupsElement);
+        break;
+      case navigatorStates.group:
+        const { name } = stateInfo;
+        this.groupElement = elementBuilder.build({ tagName: GroupElement.customComponentTagName, parent: this, fields: { group: this.schedule.getGroupByName(name) } });
+        break;
+      default:
+        throw new Error(`Не удалось восстановить состояние истории для ${element}`)
+    }
   }
 
   static get customComponentTagName() {
     return "schedule-navigator";
-  }
-}
-
-class ListElement extends HTMLElement {
-  constructor() {
-    super();
-
-    this.items = elementBuilder.build({ tagName: "div", classList: ["listItems"] });
-    this.panel = elementBuilder.build({ prototype: elementsPrototypes.panel }); // TODO: панель уже независима от текущей страницы, надо бы её вынести в отдельный элемент
-  }
-
-  connectedCallback() {
-    this.setLoader();
-  }
-
-  setLoader() {
-    this.hideElement();
-    this.innerHTML = "Загрузка..."
-  }
-
-  hideElement() {
-    if (!this.contains(this.items)) {
-      return;
-    }
-    this.removeChild(this.items);
-    this.removeChild(this.panel);
-  }
-
-  showElement() {
-    this.innerHTML = "";
-    this.appendChild(this.items);
-    this.appendChild(this.panel);
-  }
-
-  static get customComponentTagName() {
-    return "schedule-list";
-  }
-}
-
-class GroupsListElement extends ListElement {
-  constructor() {
-    super();
-  }
-
-  connectedCallback() { // FIXME: не очень хорошо
-    if (this.groupsElements === undefined) {
-      this.setLoader();
-    } else {
-      this.showElement();
-    }
-  }
-
-  set groups(groups) {
-    this.groupsElements = groups;
-    this.#createGroupsElements();
-  }
-
-  #createGroupsElements() {
-    for (const group of this.groupsElements) {
-      elementBuilder.build({ prototype: elementsPrototypes.groupListItem, parent: this.items, data: { group: group.name }, onclick: () => navigatorElement.navigateToGroup(group.name) });
-    }
-    this.showElement();
-  }
-
-  static get customComponentTagName() {
-    return "schedule-group-list";
   }
 }
 
@@ -532,7 +444,7 @@ class Schedule {
     return groupElement.childElementCount === 0;
   }
 
-  getGroupByNumber(number) {
+  getGroupByName(number) {
     const xmlNode = this.xmlDocument.querySelector(`Group[Number='${number}']`);
     return new GroupSchedule(xmlNode);
   }
@@ -636,13 +548,6 @@ class DaySchedule {
   }
 }
 
-const elementsPrototypes = Object.freeze({
-  groupListItem: Object.freeze({ tagName: "div", classList: ["groupListItem"] }),
-  weekParityToggle: Object.freeze({ tagName: "button", classList: ["weekParityToggle"], textContent: weekParityButtonText[this.currentWeekParity] }),
-  daySchedule: Object.freeze({ tagName: "table", is: DayScheduleTableElement.customComponentTagName }),
-  panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
-  day: Object.freeze({ tagName: "button", classList: ["day"] })
-});
 
 class elementBuilder {
   static build({ prototype, ...props } = { tagName: "div" }) {
@@ -692,9 +597,9 @@ class elementBuilder {
   }
 }
 
+
+
 customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
-customElements.define(ListElement.customComponentTagName, ListElement);
-customElements.define(GroupsListElement.customComponentTagName, GroupsListElement);
 customElements.define(GroupElement.customComponentTagName, GroupElement);
 customElements.define(DaysElement.customComponentTagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
@@ -702,6 +607,40 @@ customElements.define(DayScheduleTableRowElement.customComponentTagName, DaySche
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
 const navigatorElement = elementBuilder.build({ tagName: NavigatorElement.customComponentTagName });
+const domParser = new DOMParser();
+const bodyElement = document.querySelector("body");
+const days = Object.freeze({
+  monday: "Понедельник",
+  tuesday: "Вторник",
+  wednesday: "Среда",
+  thursday: "Четверг",
+  friday: "Пятница",
+  saturday: "Суббота"
+});
+const daysShortenings = Object.freeze({
+  "Понедельник": "ПН",
+  "Вторник": "ВТ",
+  "Среда": "СР",
+  "Четверг": "ЧТ",
+  "Пятница": "ПТ",
+  "Суббота": "СБ"
+});
+const weekParityButtonText = Object.freeze({
+  1: "Нечетная неделя",
+  2: "Четная неделя"
+});
+const navigatorStates = Object.freeze({
+  loading: "loading",
+  groupsList: "groupsList",
+  group: GroupElement.customComponentTagName
+});
+const elementsPrototypes = Object.freeze({
+  groupListItem: Object.freeze({ tagName: "div", classList: ["groupListItem"] }),
+  weekParityToggle: Object.freeze({ tagName: "button", classList: ["weekParityToggle"], textContent: weekParityButtonText[this.currentWeekParity] }),
+  daySchedule: Object.freeze({ tagName: "table", is: DayScheduleTableElement.customComponentTagName }),
+  panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
+  day: Object.freeze({ tagName: "button", classList: ["day"] })
+});
 
 bodyElement.appendChild(navigatorElement);
 
