@@ -24,6 +24,9 @@ const weekParityButtonText = Object.freeze({
 class NavigatorElement extends HTMLElement {
   constructor() {
     super();
+
+    this.groupsElement = elementBuilder.build({ tagName: GroupsListElement.customComponentTagName });
+
     this.#addHistoryChangeListener();
   }
 
@@ -51,7 +54,7 @@ class NavigatorElement extends HTMLElement {
       element: GroupsListElement.customComponentTagName
     }, "");
 
-    this.groupsElement = elementBuilder.build({ tagName: GroupsListElement.customComponentTagName, parent: this });
+    this.appendChild(this.groupsElement);
 
     this.#tryGetSchedule();
   }
@@ -80,26 +83,65 @@ class NavigatorElement extends HTMLElement {
   }
 }
 
-class GroupsListElement extends HTMLElement {
-  set groups(groups) {
-    this.groupsElements = groups;
-    this.connectedCallback()
+class ListElement extends HTMLElement {
+  constructor() {
+    super();
+
+    this.items = elementBuilder.build({ tagName: "div", classList: ["listItems"] });
+    this.panel = elementBuilder.build({ prototype: elementsPrototypes.panel }); // TODO: панель уже независима от текущей страницы, надо бы её вынести в отдельный элемент
   }
 
   connectedCallback() {
-    if (this.groupsElements === undefined) {
-      this.innerHTML = "Загрузка групп..."
+    this.setLoader();
+  }
+
+  setLoader() {
+    this.hideElement();
+    this.innerHTML = "Загрузка..."
+  }
+
+  hideElement() {
+    if (!this.contains(this.items)) {
+      return;
     }
-    else {
-      this.#createGroupsElements();
+    this.removeChild(this.items);
+    this.removeChild(this.panel);
+  }
+
+  showElement() {
+    this.innerHTML = "";
+    this.appendChild(this.items);
+    this.appendChild(this.panel);
+  }
+
+  static get customComponentTagName() {
+    return "schedule-list";
+  }
+}
+
+class GroupsListElement extends ListElement {
+  constructor() {
+    super();
+  }
+
+  connectedCallback() { // FIXME: не очень хорошо
+    if (this.groupsElements === undefined) {
+      this.setLoader();
+    } else {
+      this.showElement();
     }
   }
 
+  set groups(groups) {
+    this.groupsElements = groups;
+    this.#createGroupsElements();
+  }
+
   #createGroupsElements() {
-    this.innerHTML = "";
     for (const group of this.groupsElements) {
-      elementBuilder.build({ tagName: GroupListItemElement.customComponentTagName, parent: this, fields: { group } });
+      elementBuilder.build({ tagName: GroupListItemElement.customComponentTagName, parent: this.items, fields: { group } });
     }
+    this.showElement();
   }
 
   static get customComponentTagName() {
@@ -654,6 +696,7 @@ class elementBuilder {
 }
 
 customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
+customElements.define(ListElement.customComponentTagName, ListElement);
 customElements.define(GroupsListElement.customComponentTagName, GroupsListElement);
 customElements.define(GroupListItemElement.customComponentTagName, GroupListItemElement);
 customElements.define(GroupElement.customComponentTagName, GroupElement);
