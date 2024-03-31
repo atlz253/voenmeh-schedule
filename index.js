@@ -14,7 +14,7 @@ class NavigatorElement extends HTMLElement {
   }
 
   async #tryGetGroupsSchedule() {
-    this.schedule = await tryGetSchedule();
+    this.schedule = await VoenmehScheduleFetcher.tryGetGroupsSchedule();
     for (const group of this.schedule.groups) {
       elementBuilder.build({ prototype: elementsPrototypes.groupListItem, parent: this.groupsElement, data: { group: group.name }, onclick: () => this.navigateToGroupWithName(group.name) });
     }
@@ -422,6 +422,45 @@ class Time {
   }
 }
 
+class VoenmehScheduleFetcher {
+  static async tryGetGroupsSchedule() {
+    const xmlString = await this.#tryFetchScheduleXML();
+    const xmlDocument = domParser.parseFromString(xmlString, "text/xml");
+    return new Schedule(xmlDocument);
+  }
+
+  static #tryFetchScheduleXML() {
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+
+      request.open(
+        "GET",
+        this.#addCorsProxyToURL("https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml")
+      );
+
+      request.send();
+
+      request.onload = () => {
+        if (request.status !== 200) {
+          reject(
+            `Не удалось получить расписание с сайта военмеха. Код ошибки: ${request.status}`
+          );
+        } else {
+          resolve(request.response);
+        }
+      };
+    });
+  }
+
+  /**
+   * CORS ругается при попытке получения данных с сайтов, у которых другой домен.
+   * Одним из способов является использование CORS-proxy: https://github.com/AverageMarcus/cors-proxy
+   */
+  static #addCorsProxyToURL(url) {
+    return "https://cors-proxy.cluster.fun/" + "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml";
+  }
+}
+
 class Schedule {
   constructor(xmlDocument) {
     this.xmlDocument = xmlDocument;
@@ -597,8 +636,6 @@ class elementBuilder {
   }
 }
 
-
-
 customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
 customElements.define(GroupElement.customComponentTagName, GroupElement);
 customElements.define(DaysElement.customComponentTagName, DaysElement);
@@ -643,32 +680,3 @@ const elementsPrototypes = Object.freeze({
 });
 
 bodyElement.appendChild(navigatorElement);
-
-async function tryGetSchedule() {
-  const xmlString = await tryFetchScheduleXML();
-  const xmlDocument = domParser.parseFromString(xmlString, "text/xml");
-  return new Schedule(xmlDocument);
-}
-
-function tryFetchScheduleXML() {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-
-    request.open(
-      "GET",
-      "https://cors-proxy.cluster.fun/https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml"
-    );
-
-    request.send();
-
-    request.onload = () => {
-      if (request.status !== 200) {
-        reject(
-          `Не удалось получить расписание с сайта военмеха. Код ошибки: ${request.status}`
-        );
-      } else {
-        resolve(request.response);
-      }
-    };
-  });
-}
