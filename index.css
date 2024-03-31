@@ -56,12 +56,16 @@ schedule-list, schedule-group-list {
   overflow-y: scroll;
 }
 
-schedule-group-list-item {
+.groupListItem {
   display: block;
   border-bottom: 1px solid var(--border-color);
   padding: 10px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.groupListItem::before {
+  content: attr(data-group);
 }
 
 schedule-group {

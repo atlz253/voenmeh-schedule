@@ -64,13 +64,13 @@ class NavigatorElement extends HTMLElement {
     this.groupsElement.groups = this.schedule.groups;
   }
 
-  navigateToGroup(group) {
+  navigateToGroup(groupName) {
     window.history.pushState({
       element: GroupElement.customComponentTagName,
-      group: group.name
+      group: groupName
     }, "")
 
-    this.#setGroupElement(group);
+    this.#setGroupElement(this.schedule.getGroupByNumber(groupName));
   }
 
   #setGroupElement(group) {
@@ -139,24 +139,13 @@ class GroupsListElement extends ListElement {
 
   #createGroupsElements() {
     for (const group of this.groupsElements) {
-      elementBuilder.build({ tagName: GroupListItemElement.customComponentTagName, parent: this.items, fields: { group } });
+      elementBuilder.build({ prototype: elementsPrototypes.groupListItem, parent: this.items, data: { group: group.name }, onclick: () => navigatorElement.navigateToGroup(group.name) });
     }
     this.showElement();
   }
 
   static get customComponentTagName() {
     return "schedule-group-list";
-  }
-}
-
-class GroupListItemElement extends HTMLElement {
-  set group(group) {
-    this.textContent = group.name;
-    this.onclick = () => navigatorElement.navigateToGroup(group);
-  }
-
-  static get customComponentTagName() {
-    return "schedule-group-list-item";
   }
 }
 
@@ -648,6 +637,7 @@ class DaySchedule {
 }
 
 const elementsPrototypes = Object.freeze({
+  groupListItem: Object.freeze({ tagName: "div", classList: ["groupListItem"] }),
   weekParityToggle: Object.freeze({ tagName: "button", classList: ["weekParityToggle"], textContent: weekParityButtonText[this.currentWeekParity] }),
   daySchedule: Object.freeze({ tagName: "table", is: DayScheduleTableElement.customComponentTagName }),
   panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
@@ -659,11 +649,12 @@ class elementBuilder {
     if (prototype === undefined) {
       prototype = {};
     }
-    const { tagName, is, classList, parent, fields, children, onclick, textContent } = { ...{ tagName: "div" }, ...prototype, ...props };
+    const { tagName, is, classList, parent, data, fields, children, onclick, textContent } = { ...{ tagName: "div" }, ...prototype, ...props };
     const element = document.createElement(tagName, { is });
     element.onclick = onclick;
     this.#setClassList(element, classList);
     this.#setTextContent(element, textContent);
+    this.#setData(element, data);
     this.#setFields(element, fields);
     parent?.appendChild(element);
     this.#setChildren(element, children);
@@ -679,6 +670,12 @@ class elementBuilder {
   static #setTextContent(element, textContent = "") {
     if (textContent.length !== 0) {
       element.textContent = textContent;
+    }
+  }
+
+  static #setData(element, data = {}) {
+    for (const [key, value] of Object.entries(data)) {
+      element.dataset[key] = value;
     }
   }
 
@@ -698,7 +695,6 @@ class elementBuilder {
 customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
 customElements.define(ListElement.customComponentTagName, ListElement);
 customElements.define(GroupsListElement.customComponentTagName, GroupsListElement);
-customElements.define(GroupListItemElement.customComponentTagName, GroupListItemElement);
 customElements.define(GroupElement.customComponentTagName, GroupElement);
 customElements.define(DaysElement.customComponentTagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
