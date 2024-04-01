@@ -50,6 +50,7 @@ class NavigatorElement extends HTMLElement {
     const { state } = stateInfo;
 
     this.innerHTML = "";
+    panelElement.innerHTML = "";
 
     switch (state) {
       case navigatorStates.groupsList:
@@ -83,6 +84,7 @@ class GroupElement extends HTMLElement {
     this.titleElement = elementBuilder.build({ tagName: "h2" });
     this.weekParityToggleElement = elementBuilder.build({
       prototype: elementsPrototypes.weekParityToggle,
+      parent: panelElement,
       onclick: () => (this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1),
     });
     this.dayScheduleElement = elementBuilder.build({
@@ -91,17 +93,13 @@ class GroupElement extends HTMLElement {
     });
     this.daysElement = elementBuilder.build({
       tagName: DaysElement.customComponentTagName,
-    });
-    this.panelElement = elementBuilder.build({
-      prototype: elementsPrototypes.panel,
-      children: [this.weekParityToggleElement, this.daysElement],
+      parent: panelElement
     });
   }
 
   connectedCallback() {
     this.appendChild(this.titleElement);
     this.appendChild(this.dayScheduleElement);
-    this.appendChild(this.panelElement);
   }
 
   set group(group) {
@@ -151,7 +149,8 @@ class DaysElement extends HTMLElement {
   #currentDay;
   #daysElements = {};
 
-  connectedCallback() {
+  set days(days) {
+    this.daysObjects = days;
     this.#daysElements = {};
     for (const { day, callback } of this.daysObjects) {
       this.#daysElements[day] = elementBuilder.build({
@@ -162,10 +161,6 @@ class DaysElement extends HTMLElement {
       });
     }
     this.#updateActiveDay();
-  }
-
-  set days(days) {
-    this.daysObjects = days;
   }
 
   get currentDay() {
@@ -709,6 +704,7 @@ customElements.define(
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
 const navigatorElement = document.querySelector(NavigatorElement.customComponentTagName);
+const panelElement = document.querySelector(".panel");
 const domParser = new DOMParser();
 const bodyElement = document.querySelector("body");
 const days = Object.freeze({
