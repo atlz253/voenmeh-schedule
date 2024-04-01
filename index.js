@@ -708,9 +708,7 @@ customElements.define(
 );
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
-const navigatorElement = elementBuilder.build({
-  tagName: NavigatorElement.customComponentTagName,
-});
+const navigatorElement = document.querySelector(NavigatorElement.customComponentTagName);
 const domParser = new DOMParser();
 const bodyElement = document.querySelector("body");
 const days = Object.freeze({
@@ -740,7 +738,7 @@ const navigatorStates = Object.freeze({
 });
 const elementsPrototypes = Object.freeze({
   groupListItem: Object.freeze({
-    tagName: "div",
+    tagName: "li",
     classList: ["groupListItem"],
   }),
   weekParityToggle: Object.freeze({
@@ -755,5 +753,3 @@ const elementsPrototypes = Object.freeze({
   panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
   day: Object.freeze({ tagName: "button", classList: ["day"] }),
 });
-
-bodyElement.appendChild(navigatorElement);
