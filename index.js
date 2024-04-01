@@ -1,67 +1,52 @@
-class NavigatorElement extends HTMLElement {
+class CustomElement extends HTMLElement {
+  clear() {
+    this.innerHTML = "";
+  }
+
+  static get customComponentTagName() {
+    return "schedule-custom-element";
+  }
+}
+
+class NavigatorElement extends CustomElement {
   constructor() {
     super();
 
-    this.groupsElement = elementBuilder.build({
-      tagName: "ul",
-      classList: ["list"],
-    });
-    this.loaderElement = elementBuilder.build({ textContent: "Загрузка..." });
+    this.schedulesList = elementBuilder.build({ tagName: SchedulesList.customComponentTagName });
 
-    window.addEventListener("popstate", (event) => this.#changeState(event.state));
+    window.addEventListener("popstate", (event) =>
+      this.changeState({ ...event.state, saveToHistory: false })
+    );
   }
 
   connectedCallback() {
-    this.appendChild(this.loaderElement);
-    this.#tryGetGroupsSchedule();
+    this.changeState({ state: navigatorStates.schedulesList, replaceState: true });
   }
 
-  async #tryGetGroupsSchedule() {
-    this.schedule = await VoenmehScheduleFetcher.tryGetGroupsSchedule();
-    for (const group of this.schedule.groups) {
-      elementBuilder.build({
-        prototype: elementsPrototypes.groupListItem,
-        parent: this.groupsElement,
-        data: { group: group.name },
-        onclick: () => this.navigateToGroupWithName(group.name),
-      });
-    }
-    this.navigateToGroupsList();
+  changeState(stateInfo) {
+    this.clear();
+    this.#setState(stateInfo);
+    this.#saveStateToHistoryIfNeeded(stateInfo);
   }
 
-  navigateToGroupsList() {
-    const state = {
-      state: navigatorStates.groupsList,
-    };
-    window.history.replaceState(state, "");
-    this.#changeState(state);
+  clear() {
+    super.clear();
+    panel.innerHTML = "";
   }
 
-  navigateToGroupWithName(name) {
-    const state = {
-      state: navigatorStates.group,
-      name,
-    };
-    window.history.pushState(state, "");
-    this.#changeState(state);
-  }
-
-  #changeState(stateInfo) {
+  #setState(stateInfo) {
     const { state } = stateInfo;
 
-    this.innerHTML = "";
-    panelElement.innerHTML = "";
-
     switch (state) {
-      case navigatorStates.groupsList:
-        this.appendChild(this.groupsElement);
+      case navigatorStates.schedulesList:
+        this.appendChild(this.schedulesList);
         break;
       case navigatorStates.group:
-        const { name } = stateInfo;
+        const { group } = stateInfo;
         this.groupElement = elementBuilder.build({
           tagName: GroupElement.customComponentTagName,
           parent: this,
-          fields: { group: this.schedule.getGroupByName(name) },
+          fields: { group },
         });
         break;
       default:
@@ -69,8 +54,156 @@ class NavigatorElement extends HTMLElement {
     }
   }
 
+  #saveStateToHistoryIfNeeded(stateInfo) {
+    const { replaceState, saveToHistory } = stateInfo;
+
+    if (saveToHistory !== undefined && !saveToHistory) {
+      return;
+    } else if (replaceState) {
+      window.history.replaceState(stateInfo, "");
+    } else {
+      window.history.pushState(stateInfo, "");
+    }
+  }
+
   static get customComponentTagName() {
     return "schedule-navigator";
+  }
+}
+
+class SchedulesList extends CustomElement {
+  constructor() {
+    super();
+
+    this.groupsList = elementBuilder.build({
+      prototype: elementsPrototypes.list,
+      is: GroupsList.customComponentTagName,
+    });
+    this.lecturersList = elementBuilder.build({
+      prototype: elementsPrototypes.list,
+      is: LecturersList.customComponentTagName,
+    });
+    this.lecturersElement = elementBuilder.build({ prototype: elementsPrototypes.list });
+    this.groupsScheduleButton = elementBuilder.build({
+      prototype: elementsPrototypes.button,
+      textContent: "Расписание групп",
+      onclick: () => this.#showGroupsList(),
+      classList: ["button_active"]
+    });
+    this.lecturersScheduleButton = elementBuilder.build({
+      prototype: elementsPrototypes.button,
+      textContent: "Расписание преподавателей",
+      onclick: () => this.#showLecturersList(),
+    });
+  }
+
+  connectedCallback() {
+    this.#showGroupsList();
+    panel.appendChild(this.groupsScheduleButton);
+    panel.appendChild(this.lecturersScheduleButton);
+  }
+
+  #showGroupsList() {
+    this.clear();
+    this.groupsScheduleButton.classList.add("button_active");
+    this.groupsScheduleButton.disabled = true;
+    this.lecturersScheduleButton.classList.remove("button_active");
+    this.lecturersScheduleButton.disabled = false;
+    this.appendChild(this.groupsList);
+  }
+
+  #showLecturersList() {
+    this.clear();
+    this.groupsScheduleButton.classList.remove("button_active");
+    this.groupsScheduleButton.disabled = false;
+    this.lecturersScheduleButton.classList.add("button_active");
+    this.lecturersScheduleButton.disabled = true;
+    this.appendChild(this.lecturersList);
+  }
+
+  static get customComponentTagName() {
+    return "schedule-schedules-list";
+  }
+}
+
+class AbstractListElement extends HTMLUListElement {
+  showLoader() {
+    this.clear();
+    elementBuilder.build({ tagName: "li", textContent: "Загрузка...", parent: this });
+  }
+
+  clear() {
+    this.innerHTML = "";
+  }
+
+  isEmpty() {
+    return this.childElementCount === 0;
+  }
+
+  static get customComponentTagName() {
+    return "schedule-abstract-list";
+  }
+}
+
+class GroupsList extends AbstractListElement {
+  connectedCallback() {
+    if (this.isEmpty()) {
+      this.#getGroups();
+    }
+  }
+
+  async #getGroups() {
+    this.showLoader();
+    const groupsSchedule = await VoenmehScheduleFetcher.tryGetGroupsSchedule();
+    this.clear();
+    for (const group of Object.values(groupsSchedule)) {
+      this.appendChild(this.#createGroupElement(group));
+    }
+  }
+
+  #createGroupElement(group) {
+    return elementBuilder.build({
+      prototype: elementsPrototypes.groupListItem,
+      data: { group: group.name },
+      onclick: () =>
+        pageNavigator.changeState({
+          state: navigatorStates.group,
+          group,
+        }),
+    });
+  }
+
+  static get customComponentTagName() {
+    return "schedule-groups-list";
+  }
+}
+
+class LecturersList extends AbstractListElement {
+  connectedCallback() {
+    if (this.isEmpty()) {
+      this.#getLecturers();
+    }
+  }
+
+  async #getLecturers() {
+    this.showLoader();
+    const lecturersSchedule = await VoenmehScheduleFetcher.tryGetLecturersSchedule();
+    console.log(lecturersSchedule);
+    this.clear();
+    for (const lecturer of Object.values(lecturersSchedule)) {
+      this.appendChild(this.#createLecturerElement(lecturer));
+    }
+  }
+
+  #createLecturerElement(lecturer) {
+    return elementBuilder.build({
+      prototype: elementsPrototypes.lecturerListItem,
+      data: { name: lecturer.name, chair: lecturer.chair },
+    });
+  }
+
+  static get customComponentTagName() {
+    return "schedule-lecturers-list";
   }
 }
 
@@ -84,7 +217,7 @@ class GroupElement extends HTMLElement {
     this.titleElement = elementBuilder.build({ tagName: "h2" });
     this.weekParityToggleElement = elementBuilder.build({
       prototype: elementsPrototypes.weekParityToggle,
-      parent: panelElement,
+      parent: panel,
       onclick: () => (this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1),
     });
     this.dayScheduleElement = elementBuilder.build({
@@ -93,7 +226,7 @@ class GroupElement extends HTMLElement {
     });
     this.daysElement = elementBuilder.build({
       tagName: DaysElement.customComponentTagName,
-      parent: panelElement
+      parent: panel,
     });
   }
 
@@ -105,17 +238,17 @@ class GroupElement extends HTMLElement {
   set group(group) {
     this.groupElement = group;
     this.titleElement.textContent = group.name;
-    this.currentDay = this.groupElement.days[0];
+    this.currentDay = this.groupElement.days[0].dayName;
     this.currentWeekParity = 1;
     this.#updateDaysElement();
   }
 
   #updateDaysElement() {
     this.daysElement.days = this.groupElement.days.map((day) => ({
-      day,
+      day: day.dayName,
       callback: () => {
-        this.currentDay = day;
-        this.daysElement.currentDay = day;
+        this.currentDay = day.dayName;
+        this.daysElement.currentDay = day.dayName;
       },
     }));
     this.daysElement.currentDay = this.currentDay;
@@ -136,7 +269,9 @@ class GroupElement extends HTMLElement {
   }
 
   set currentDay(currentDay) {
-    this.dayScheduleElement.schedule = this.groupElement.getDaySchedule(currentDay);
+    this.dayScheduleElement.schedule = this.groupElement.days.find(
+      ({ dayName }) => dayName === currentDay
+    );
     this.#currentDay = currentDay;
   }
 
@@ -173,16 +308,16 @@ class DaysElement extends HTMLElement {
   }
 
   #updateActiveDay() {
-    const previousActiveDay = this.querySelector(".day_active");
+    const previousActiveDay = this.querySelector(".button_active");
 
     if (previousActiveDay !== null) {
-      previousActiveDay.classList.remove("day_active");
+      previousActiveDay.classList.remove("button_active");
     }
 
     const currentActiveDay = this.#daysElements[this.currentDay];
 
     if (currentActiveDay !== undefined) {
-      this.#daysElements[this.currentDay].classList.add("day_active");
+      this.#daysElements[this.currentDay].classList.add("button_active");
     }
   }
 
@@ -263,7 +398,7 @@ class DayScheduleTableElement extends HTMLTableElement {
     }
 
     const weekLessons =
-      this.parity === 1 ? this.scheduleObject.oddWeek : this.scheduleObject.evenWeek;
+      this.parity === 1 ? this.scheduleObject.oddWeekLessons : this.scheduleObject.evenWeekLessons;
     if (weekLessons.length === 0) {
       this.body.innerHTML = "В этот день нет занятий";
       return;
@@ -472,22 +607,31 @@ class Time {
 }
 
 class VoenmehScheduleFetcher {
-  static async tryGetGroupsSchedule() {
-    const xmlString = await this.#tryFetchScheduleXML();
-    const xmlDocument = domParser.parseFromString(xmlString, "text/xml");
-    return new Schedule(xmlDocument);
+  static groupsScheduleURL = "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml";
+  static lecturersScheduleURL =
+    "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableLecturer46.xml";
+  static domParser = new DOMParser();
+
+  static async tryGetLecturersSchedule() {
+    const xmlDocument = await this.tryFetchXMLDocument(this.lecturersScheduleURL);
+    return XMLLecturersScheduleParser.parseToJSON(xmlDocument);
   }
 
-  static #tryFetchScheduleXML() {
+  static async tryGetGroupsSchedule() {
+    const xmlDocument = await this.tryFetchXMLDocument(this.groupsScheduleURL);
+    return XMLGroupsScheduleParser.parseToJSON(xmlDocument);
+  }
+
+  static async tryFetchXMLDocument(url) {
+    const xmlString = await this.#tryFetch(url);
+    return this.domParser.parseFromString(xmlString, "text/xml");
+  }
+
+  static #tryFetch(url) {
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
 
-      request.open(
-        "GET",
-        this.#addCorsProxyToURL(
-          "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml"
-        )
-      );
+      request.open("GET", this.#addCorsProxyToURL(url));
 
       request.send();
 
@@ -503,132 +647,108 @@ class VoenmehScheduleFetcher {
 
   /**
    * CORS ругается при попытке получения данных с сайтов, у которых другой домен.
-   * Одним из способов является использование CORS-proxy: https://github.com/AverageMarcus/cors-proxy
+   * Одним из способов решения является использование CORS-proxy: https://github.com/AverageMarcus/cors-proxy
    */
   static #addCorsProxyToURL(url) {
-    return (
-      "https://cors-proxy.cluster.fun/" +
-      "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml"
-    );
+    return "https://cors-proxy.cluster.fun/" + url;
   }
 }
 
-class Schedule {
+class AbstractXMLScheduleParser {
   constructor(xmlDocument) {
     this.xmlDocument = xmlDocument;
   }
 
-  get groups() {
-    const groupElements = this.xmlDocument.querySelectorAll("Group");
-    const groups = [];
+  static parseToJSON(xmlDocument) {
+    const scheduleElements = this.getScheduleElements(xmlDocument);
+    const schedules = {};
 
-    for (const groupElement of groupElements) {
-      if (!this.#isGroupElementScheduleEmpty(groupElement)) {
-        groups.push(new GroupSchedule(groupElement));
+    for (const scheduleElement of scheduleElements) {
+      if (this.isScheduleElementHaveChild(scheduleElement)) {
+        const schedule = this.parseScheduleXML(scheduleElement);
+        schedules[schedule.name] = schedule;
       }
     }
 
-    return groups;
+    return schedules;
   }
 
-  #isGroupElementScheduleEmpty(groupElement) {
-    return groupElement.childElementCount === 0;
+  static getScheduleElements(xmlDocument) {
+    throw new Error(`Не удалось получить элементы расписаний`);
   }
 
-  getGroupByName(number) {
-    const xmlNode = this.xmlDocument.querySelector(`Group[Number='${number}']`);
-    return new GroupSchedule(xmlNode);
-  }
-}
-
-class GroupSchedule {
-  constructor(group) {
-    this.group = group;
+  static isScheduleElementHaveChild(groupElement) {
+    return groupElement.childElementCount !== 0;
   }
 
-  get name() {
-    return this.group.getAttribute("Number");
-  }
-
-  get daysShortenings() {
-    const dayNames = this.days;
-    const shortenings = [];
-    for (const day of dayNames) {
-      shortenings.push(this.#getDayShortening(day));
-    }
-    return shortenings;
-  }
-
-  #getDayShortening(day) {
-    if (daysShortenings[day] !== undefined) {
-      return daysShortenings[day];
-    } else {
-      throw new Error(`Не удалось найти сокращение для дня: ${day}`);
-    }
-  }
-
-  get days() {
-    const dayElements = this.group.querySelectorAll("Day");
-    const dayNames = [];
+  static parseScheduleXML(scheduleElement) {
+    const schedule = {
+      days: [],
+    };
+    const dayElements = scheduleElement.querySelectorAll("Day");
     for (const dayElement of dayElements) {
-      dayNames.push(dayElement.getAttribute("Title"));
-    }
-    return dayNames;
-  }
-
-  getDaySchedule(dayName) {
-    return new DaySchedule(this.group.querySelector(`Day[Title=${dayName}]`));
-  }
-}
-
-class DaySchedule {
-  constructor(day) {
-    this.day = day;
-  }
-
-  get evenWeek() {
-    const schedule = [];
-    for (const lesson of this.#evenLessons) {
-      schedule.push(this.#parseLessonXML(lesson));
+      schedule.days.push(this.getDaySchedule(dayElement));
     }
     return schedule;
   }
 
-  get #evenLessons() {
-    return this.#lessons.filter((lesson) => lesson.querySelector("WeekCode").textContent === "2");
-  }
+  static getDaySchedule(dayElement) {
+    const daySchedule = {
+      dayName: dayElement.getAttribute("Title"),
+      oddWeekLessons: [],
+      evenWeekLessons: [],
+    };
+    const lessonElements = dayElement.querySelectorAll("Lesson");
 
-  get oddWeek() {
-    const schedule = [];
-    for (const lesson of this.#oddLessons) {
-      schedule.push(this.#parseLessonXML(lesson));
+    for (const lessonElement of lessonElements) {
+      if (this.isOddWeekLessonElement(lessonElement)) {
+        daySchedule.oddWeekLessons.push(this.parseLessonXML(lessonElement));
+      } else {
+        daySchedule.evenWeekLessons.push(this.parseLessonXML(lessonElement));
+      }
     }
-    return schedule;
+
+    return daySchedule;
   }
 
-  get #oddLessons() {
-    return this.#lessons.filter((lesson) => lesson.querySelector("WeekCode").textContent === "1");
+  static isOddWeekLessonElement(lessonElement) {
+    return lessonElement.querySelector("WeekCode").textContent === "1";
   }
 
-  get #lessons() {
-    return [...this.day.querySelectorAll("Lesson")];
-  }
-
-  #parseLessonXML(lesson) {
+  static parseLessonXML(lesson) {
     return {
-      time: this.#parseLessonTime(lesson),
+      time: this.parseLessonTime(lesson),
       discipline: lesson.querySelector("Discipline").textContent,
-      lecturers: this.#parseLecturers(lesson),
       classRoom: lesson.querySelector("Classroom").textContent.trim().slice(0, -1),
     };
   }
 
-  #parseLessonTime(lesson) {
+  static parseLessonTime(lesson) {
     const timeElement = lesson.querySelector("Time");
     return timeElement.textContent.split(" ")[0];
   }
+}
 
-  #parseLecturers(lesson) {
+class XMLGroupsScheduleParser extends AbstractXMLScheduleParser {
+  static getScheduleElements(xmlDocument) {
+    return xmlDocument.querySelectorAll("Group");
+  }
+
+  static parseScheduleXML(scheduleElement) {
+    return {
+      ...super.parseScheduleXML(scheduleElement),
+      name: scheduleElement.getAttribute("Number"),
+    };
+  }
+
+  static parseLessonXML(lesson) {
+    return {
+      ...super.parseLessonXML(lesson),
+      lecturers: this.#parseLessonLecturers(lesson),
+    };
+  }
+
+  static #parseLessonLecturers(lesson) {
     const lecturers = [];
     const lecturerElements = lesson.querySelectorAll("Lecturer");
     for (const lecturerElement of lecturerElements) {
@@ -638,16 +758,40 @@ class DaySchedule {
   }
 }
 
-class elementBuilder {
-  static build({ prototype, ...props } = { tagName: "div" }) {
-    if (prototype === undefined) {
-      prototype = {};
-    }
-    const { tagName, is, classList, parent, data, fields, children, onclick, textContent } = {
-      ...{ tagName: "div" },
-      ...prototype,
-      ...props,
+class XMLLecturersScheduleParser extends AbstractXMLScheduleParser {
+  static getScheduleElements(xmlDocument) {
+    return xmlDocument.querySelectorAll("Lecturer");
+  }
+
+  static parseScheduleXML(scheduleElement) {
+    return {
+      ...super.parseScheduleXML(scheduleElement),
+      name: scheduleElement.getAttribute("LecturerName"),
+      chair: scheduleElement.getAttribute("Kafedra"),
     };
+  }
+
+  static parseLessonXML(lesson) {
+    return {
+      ...super.parseLessonXML(lesson),
+      lecturers: this.#parseLessonGroups(lesson),
+    };
+  }
+
+  static #parseLessonGroups(lesson) {
+    const groups = [];
+    const groupElements = lesson.querySelectorAll("Group");
+    for (const groupElement of groupElements) {
+      groups.push(groupElement.querySelector("Number").textContent);
+    }
+    return groups;
+  }
+}
+
+class elementBuilder {
+  static build({ prototype, ...props } = {}) {
+    const { tagName, is, classList, parent, data, fields, children, onclick, textContent } =
+      this.#mergePrototypeAndProps(props, prototype);
     const element = document.createElement(tagName, { is });
     element.onclick = onclick;
     this.#setClassList(element, classList);
@@ -657,6 +801,22 @@ class elementBuilder {
     parent?.appendChild(element);
     this.#setChildren(element, children);
     return element;
+  }
+
+  static #mergePrototypeAndProps(props, prototype = {}) {
+    const { classList: prototypeClassList, ...prototypeTail } = prototype;
+    const { classList: propsClassList, ...propsTail } = props;
+
+    return {
+      tagName: "div",
+      ...prototypeTail,
+      ...propsTail,
+      classList: this.#mergeTwoArrays(prototypeClassList, propsClassList),
+    };
+  }
+
+  static #mergeTwoArrays(firstArray = [], secondArray = []) {
+    return [...firstArray, ...secondArray];
   }
 
   static #setClassList(element, classList = []) {
@@ -690,7 +850,11 @@ class elementBuilder {
   }
 }
 
+customElements.define(CustomElement.customComponentTagName, CustomElement);
 customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
+customElements.define(SchedulesList.customComponentTagName, SchedulesList);
+customElements.define(GroupsList.customComponentTagName, GroupsList, { extends: "ul" });
+customElements.define(LecturersList.customComponentTagName, LecturersList, { extends: "ul" });
 customElements.define(GroupElement.customComponentTagName, GroupElement);
 customElements.define(DaysElement.customComponentTagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, {
@@ -703,10 +867,6 @@ customElements.define(
 );
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
-const navigatorElement = document.querySelector(NavigatorElement.customComponentTagName);
-const panelElement = document.querySelector(".panel");
-const domParser = new DOMParser();
-const bodyElement = document.querySelector("body");
 const days = Object.freeze({
   monday: "Понедельник",
   tuesday: "Вторник",
@@ -728,8 +888,7 @@ const weekParityButtonText = Object.freeze({
   2: "Четная неделя",
 });
 const navigatorStates = Object.freeze({
-  loading: "loading",
-  groupsList: "groupsList",
+  schedulesList: SchedulesList.customComponentTagName,
   group: GroupElement.customComponentTagName,
 });
 const elementsPrototypes = Object.freeze({
@@ -737,9 +896,17 @@ const elementsPrototypes = Object.freeze({
     tagName: "li",
     classList: ["groupListItem"],
   }),
+  lecturerListItem: Object.freeze({
+    tagName: "li",
+    classList: ["lecturerListItem"],
+  }),
+  button: Object.freeze({
+    tagName: "button",
+    classList: ["button"],
+  }),
   weekParityToggle: Object.freeze({
     tagName: "button",
-    classList: ["weekParityToggle"],
+    classList: ["button", "weekParityToggle"],
     textContent: weekParityButtonText[this.currentWeekParity],
   }),
   daySchedule: Object.freeze({
@@ -747,5 +914,12 @@ const elementsPrototypes = Object.freeze({
     is: DayScheduleTableElement.customComponentTagName,
   }),
   panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
-  day: Object.freeze({ tagName: "button", classList: ["day"] }),
+  day: Object.freeze({ tagName: "button", classList: ["button", "day"] }),
+  list: Object.freeze({ tagName: "ul", classList: ["list"] }),
+  panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
 });
+const pageNavigator = elementBuilder.build({ tagName: NavigatorElement.customComponentTagName });
+const panel = elementBuilder.build({ prototype: elementsPrototypes.panel });
+
+document.body.appendChild(pageNavigator);
+document.body.appendChild(panel);
