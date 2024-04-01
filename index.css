@@ -53,7 +53,10 @@ button {
 
 .button:disabled {
   background-color: var(--button-disabled-color);
+}
 
+.button.button_active {
+  background-color: var(--secondary-color);
 }
 
 h2 {
@@ -127,10 +130,6 @@ schedule-days {
   padding: 0;
   border-radius: 50%;
   font-size: 14px;
-}
-
-.day_active {
-  background-color: var(--secondary-color);
 }
 
 .weekParityToggle {

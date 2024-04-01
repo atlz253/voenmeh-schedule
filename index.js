@@ -95,15 +95,17 @@ class SchedulesList extends CustomElement {
       textContent: "Расписание преподавателей",
       onclick: () => this.#showLecturersList(),
     });
+    this.showLastActive = this.#showGroupsList;
   }
 
   connectedCallback() {
-    this.#showGroupsList();
+    this.showLastActive();
     panel.appendChild(this.groupsScheduleButton);
     panel.appendChild(this.lecturersScheduleButton);
   }
 
   #showGroupsList() {
+    this.showLastActive = this.#showGroupsList;
     this.clear();
     this.groupsScheduleButton.classList.add("button_active");
     this.groupsScheduleButton.disabled = true;
@@ -113,6 +115,7 @@ class SchedulesList extends CustomElement {
   }
 
   #showLecturersList() {
+    this.showLastActive = this.#showLecturersList;
     this.clear();
     this.groupsScheduleButton.classList.remove("button_active");
     this.groupsScheduleButton.disabled = false;
@@ -188,7 +191,6 @@ class LecturersList extends AbstractListElement {
   async #getLecturers() {
     this.showLoader();
     const lecturersSchedule = await VoenmehScheduleFetcher.tryGetLecturersSchedule();
-    console.log(lecturersSchedule);
     this.clear();
     for (const lecturer of Object.values(lecturersSchedule)) {
       this.appendChild(this.#createLecturerElement(lecturer));
@@ -199,6 +201,11 @@ class LecturersList extends AbstractListElement {
     return elementBuilder.build({
       prototype: elementsPrototypes.lecturerListItem,
       data: { name: lecturer.name, chair: lecturer.chair },
+      onclick: () =>
+        pageNavigator.changeState({
+          state: navigatorStates.group,
+          group: lecturer,
+        }),
     });
   }
 
