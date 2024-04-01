@@ -2,7 +2,10 @@ class NavigatorElement extends HTMLElement {
   constructor() {
     super();
 
-    this.groupsElement = elementBuilder.build({ tagName: "ul", classList: ["list"] });
+    this.groupsElement = elementBuilder.build({
+      tagName: "ul",
+      classList: ["list"],
+    });
     this.loaderElement = elementBuilder.build({ textContent: "Загрузка..." });
 
     window.addEventListener("popstate", (event) => this.#changeState(event.state));
@@ -16,14 +19,19 @@ class NavigatorElement extends HTMLElement {
   async #tryGetGroupsSchedule() {
     this.schedule = await VoenmehScheduleFetcher.tryGetGroupsSchedule();
     for (const group of this.schedule.groups) {
-      elementBuilder.build({ prototype: elementsPrototypes.groupListItem, parent: this.groupsElement, data: { group: group.name }, onclick: () => this.navigateToGroupWithName(group.name) });
+      elementBuilder.build({
+        prototype: elementsPrototypes.groupListItem,
+        parent: this.groupsElement,
+        data: { group: group.name },
+        onclick: () => this.navigateToGroupWithName(group.name),
+      });
     }
     this.navigateToGroupsList();
   }
 
   navigateToGroupsList() {
     const state = {
-      state: navigatorStates.groupsList
+      state: navigatorStates.groupsList,
     };
     window.history.replaceState(state, "");
     this.#changeState(state);
@@ -32,8 +40,8 @@ class NavigatorElement extends HTMLElement {
   navigateToGroupWithName(name) {
     const state = {
       state: navigatorStates.group,
-      name
-    }
+      name,
+    };
     window.history.pushState(state, "");
     this.#changeState(state);
   }
@@ -49,10 +57,14 @@ class NavigatorElement extends HTMLElement {
         break;
       case navigatorStates.group:
         const { name } = stateInfo;
-        this.groupElement = elementBuilder.build({ tagName: GroupElement.customComponentTagName, parent: this, fields: { group: this.schedule.getGroupByName(name) } });
+        this.groupElement = elementBuilder.build({
+          tagName: GroupElement.customComponentTagName,
+          parent: this,
+          fields: { group: this.schedule.getGroupByName(name) },
+        });
         break;
       default:
-        throw new Error(`Не удалось восстановить состояние истории для ${element}`)
+        throw new Error(`Не удалось восстановить состояние истории для ${element}`);
     }
   }
 
@@ -69,10 +81,21 @@ class GroupElement extends HTMLElement {
     super();
 
     this.titleElement = elementBuilder.build({ tagName: "h2" });
-    this.weekParityToggleElement = elementBuilder.build({ prototype: elementsPrototypes.weekParityToggle, onclick: () => this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1 });
-    this.dayScheduleElement = elementBuilder.build({ prototype: elementsPrototypes.daySchedule, fields: { parity: this.currentWeekParity } });
-    this.daysElement = elementBuilder.build({ tagName: DaysElement.customComponentTagName });
-    this.panelElement = elementBuilder.build({ prototype: elementsPrototypes.panel, children: [this.weekParityToggleElement, this.daysElement] });
+    this.weekParityToggleElement = elementBuilder.build({
+      prototype: elementsPrototypes.weekParityToggle,
+      onclick: () => (this.currentWeekParity = this.currentWeekParity === 1 ? 2 : 1),
+    });
+    this.dayScheduleElement = elementBuilder.build({
+      prototype: elementsPrototypes.daySchedule,
+      fields: { parity: this.currentWeekParity },
+    });
+    this.daysElement = elementBuilder.build({
+      tagName: DaysElement.customComponentTagName,
+    });
+    this.panelElement = elementBuilder.build({
+      prototype: elementsPrototypes.panel,
+      children: [this.weekParityToggleElement, this.daysElement],
+    });
   }
 
   connectedCallback() {
@@ -90,13 +113,13 @@ class GroupElement extends HTMLElement {
   }
 
   #updateDaysElement() {
-    this.daysElement.days = this.groupElement.days.map(day => ({
+    this.daysElement.days = this.groupElement.days.map((day) => ({
       day,
       callback: () => {
-        this.currentDay = day
+        this.currentDay = day;
         this.daysElement.currentDay = day;
-      }
-    }))
+      },
+    }));
     this.daysElement.currentDay = this.currentDay;
   }
 
@@ -131,7 +154,12 @@ class DaysElement extends HTMLElement {
   connectedCallback() {
     this.#daysElements = {};
     for (const { day, callback } of this.daysObjects) {
-      this.#daysElements[day] = elementBuilder.build({ prototype: elementsPrototypes.day, parent: this, textContent: daysShortenings[day], onclick: callback });
+      this.#daysElements[day] = elementBuilder.build({
+        prototype: elementsPrototypes.day,
+        parent: this,
+        textContent: daysShortenings[day],
+        onclick: callback,
+      });
     }
     this.#updateActiveDay();
   }
@@ -222,7 +250,7 @@ class DayScheduleTableElement extends HTMLTableElement {
   }
 
   #updateTimePosition() {
-    const timeElements = this.querySelectorAll(".timeRow:not(:first-child) .time")
+    const timeElements = this.querySelectorAll(".timeRow:not(:first-child) .time");
 
     if (this.rowElements === undefined) {
       return;
@@ -230,7 +258,7 @@ class DayScheduleTableElement extends HTMLTableElement {
 
     const rowKey = Object.keys(this.rowElements)[0];
     for (const timeElement of timeElements) {
-      timeElement.style.top = `${-5 - this.rowElements[rowKey].clientHeight}px`
+      timeElement.style.top = `${-5 - this.rowElements[rowKey].clientHeight}px`;
     }
   }
 
@@ -239,7 +267,8 @@ class DayScheduleTableElement extends HTMLTableElement {
       return;
     }
 
-    const weekLessons = this.parity === 1 ? this.scheduleObject.oddWeek : this.scheduleObject.evenWeek;
+    const weekLessons =
+      this.parity === 1 ? this.scheduleObject.oddWeek : this.scheduleObject.evenWeek;
     if (weekLessons.length === 0) {
       this.body.innerHTML = "В этот день нет занятий";
       return;
@@ -259,7 +288,11 @@ class DayScheduleTableElement extends HTMLTableElement {
     let currentTime = startTime;
 
     while (currentTime.time <= endTime.time) {
-      this.rowElements[currentTime.toString()] = elementBuilder.build({ tagName: "tr", is: DayScheduleTableRowElement.customComponentTagName, parent: this.body })
+      this.rowElements[currentTime.toString()] = elementBuilder.build({
+        tagName: "tr",
+        is: DayScheduleTableRowElement.customComponentTagName,
+        parent: this.body,
+      });
       currentTime = currentTime.getPlusMinutesTime(5);
     }
   }
@@ -286,18 +319,35 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
   constructor() {
     super();
 
-    this.timeColumn = elementBuilder.build({ tagName: "td", classList: ["timeColumn"], parent: this });
-    this.scheduleColumn = elementBuilder.build({ tagName: "td", classList: ["scheduleColumn"], parent: this });
+    this.timeColumn = elementBuilder.build({
+      tagName: "td",
+      classList: ["timeColumn"],
+      parent: this,
+    });
+    this.scheduleColumn = elementBuilder.build({
+      tagName: "td",
+      classList: ["scheduleColumn"],
+      parent: this,
+    });
 
     this.classList.add("timeRow");
   }
 
   set lesson(lesson) {
-    this.lessonElement = elementBuilder.build({ tagName: LessonElement.customComponentTagName, fields: { lesson }, parent: this.scheduleColumn });
+    this.lessonElement = elementBuilder.build({
+      tagName: LessonElement.customComponentTagName,
+      fields: { lesson },
+      parent: this.scheduleColumn,
+    });
   }
 
   set dateTimeString(timeString) {
-    elementBuilder.build({ tagName: "span", classList: ["time"], textContent: timeString, parent: this.timeColumn });
+    elementBuilder.build({
+      tagName: "span",
+      classList: ["time"],
+      textContent: timeString,
+      parent: this.timeColumn,
+    });
   }
 
   static get customComponentTagName() {
@@ -308,13 +358,22 @@ class DayScheduleTableRowElement extends HTMLTableRowElement {
 class LessonElement extends HTMLElement {
   connectedCallback() {
     elementBuilder.build({
-      parent: this, children: [
-        elementBuilder.build({ textContent: this.#getLessonIntervalString(this.lessonObject.time) }),
-        elementBuilder.build({ textContent: this.lessonObject.classRoom })
-      ]
+      parent: this,
+      children: [
+        elementBuilder.build({
+          textContent: this.#getLessonIntervalString(this.lessonObject.time),
+        }),
+        elementBuilder.build({ textContent: this.lessonObject.classRoom }),
+      ],
     });
-    elementBuilder.build({ parent: this, textContent: this.lessonObject.discipline });
-    elementBuilder.build({ parent: this, textContent: this.lessonObject.lecturers.join(", ") });
+    elementBuilder.build({
+      parent: this,
+      textContent: this.lessonObject.discipline,
+    });
+    elementBuilder.build({
+      parent: this,
+      textContent: this.lessonObject.lecturers.join(", "),
+    });
   }
 
   #getLessonIntervalString(lessonStartTime) {
@@ -363,17 +422,15 @@ class Time {
 
     if (numberString.length === 2) {
       return numberString;
-    }
-    else {
-      return '0' + numberString;
+    } else {
+      return "0" + numberString;
     }
   }
 
   getTimeWithMinutes(minutes) {
     if (minutes >= 60) {
       return Time.fromTime(this.getHours() * 60);
-    }
-    else {
+    } else {
       return Time.fromTime(this.getHours() * 60 + minutes);
     }
   }
@@ -385,8 +442,7 @@ class Time {
   getTimeWithHours(hours) {
     if (hours >= 24) {
       return Time.fromTime(0);
-    }
-    else {
+    } else {
       return Time.fromTime(hours * 60 + this.getMinutes());
     }
   }
@@ -412,11 +468,9 @@ class Time {
     const minutesInDay = 24 * 60;
     if (minutes >= minutesInDay) {
       return minutes % minutesInDay;
-    }
-    else if (minutes < 0) {
+    } else if (minutes < 0) {
       return 0;
-    }
-    else {
+    } else {
       return minutes;
     }
   }
@@ -435,16 +489,16 @@ class VoenmehScheduleFetcher {
 
       request.open(
         "GET",
-        this.#addCorsProxyToURL("https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml")
+        this.#addCorsProxyToURL(
+          "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml"
+        )
       );
 
       request.send();
 
       request.onload = () => {
         if (request.status !== 200) {
-          reject(
-            `Не удалось получить расписание с сайта военмеха. Код ошибки: ${request.status}`
-          );
+          reject(`Не удалось получить расписание с сайта военмеха. Код ошибки: ${request.status}`);
         } else {
           resolve(request.response);
         }
@@ -457,7 +511,10 @@ class VoenmehScheduleFetcher {
    * Одним из способов является использование CORS-proxy: https://github.com/AverageMarcus/cors-proxy
    */
   static #addCorsProxyToURL(url) {
-    return "https://cors-proxy.cluster.fun/" + "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml";
+    return (
+      "https://cors-proxy.cluster.fun/" +
+      "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml"
+    );
   }
 }
 
@@ -502,7 +559,7 @@ class GroupSchedule {
     const dayNames = this.days;
     const shortenings = [];
     for (const day of dayNames) {
-      shortenings.push(this.#getDayShortening(day))
+      shortenings.push(this.#getDayShortening(day));
     }
     return shortenings;
   }
@@ -510,8 +567,7 @@ class GroupSchedule {
   #getDayShortening(day) {
     if (daysShortenings[day] !== undefined) {
       return daysShortenings[day];
-    }
-    else {
+    } else {
       throw new Error(`Не удалось найти сокращение для дня: ${day}`);
     }
   }
@@ -544,7 +600,7 @@ class DaySchedule {
   }
 
   get #evenLessons() {
-    return this.#lessons.filter(lesson => lesson.querySelector("WeekCode").textContent === "2");
+    return this.#lessons.filter((lesson) => lesson.querySelector("WeekCode").textContent === "2");
   }
 
   get oddWeek() {
@@ -556,7 +612,7 @@ class DaySchedule {
   }
 
   get #oddLessons() {
-    return this.#lessons.filter(lesson => lesson.querySelector("WeekCode").textContent === "1");
+    return this.#lessons.filter((lesson) => lesson.querySelector("WeekCode").textContent === "1");
   }
 
   get #lessons() {
@@ -568,7 +624,7 @@ class DaySchedule {
       time: this.#parseLessonTime(lesson),
       discipline: lesson.querySelector("Discipline").textContent,
       lecturers: this.#parseLecturers(lesson),
-      classRoom: lesson.querySelector("Classroom").textContent.trim().slice(0, -1)
+      classRoom: lesson.querySelector("Classroom").textContent.trim().slice(0, -1),
     };
   }
 
@@ -581,19 +637,22 @@ class DaySchedule {
     const lecturers = [];
     const lecturerElements = lesson.querySelectorAll("Lecturer");
     for (const lecturerElement of lecturerElements) {
-      lecturers.push(lecturerElement.querySelector("ShortName").textContent)
+      lecturers.push(lecturerElement.querySelector("ShortName").textContent);
     }
     return lecturers;
   }
 }
-
 
 class elementBuilder {
   static build({ prototype, ...props } = { tagName: "div" }) {
     if (prototype === undefined) {
       prototype = {};
     }
-    const { tagName, is, classList, parent, data, fields, children, onclick, textContent } = { ...{ tagName: "div" }, ...prototype, ...props };
+    const { tagName, is, classList, parent, data, fields, children, onclick, textContent } = {
+      ...{ tagName: "div" },
+      ...prototype,
+      ...props,
+    };
     const element = document.createElement(tagName, { is });
     element.onclick = onclick;
     this.#setClassList(element, classList);
@@ -639,11 +698,19 @@ class elementBuilder {
 customElements.define(NavigatorElement.customComponentTagName, NavigatorElement);
 customElements.define(GroupElement.customComponentTagName, GroupElement);
 customElements.define(DaysElement.customComponentTagName, DaysElement);
-customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, { extends: "table" });
-customElements.define(DayScheduleTableRowElement.customComponentTagName, DayScheduleTableRowElement, { extends: "tr" });
+customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, {
+  extends: "table",
+});
+customElements.define(
+  DayScheduleTableRowElement.customComponentTagName,
+  DayScheduleTableRowElement,
+  { extends: "tr" }
+);
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
-const navigatorElement = elementBuilder.build({ tagName: NavigatorElement.customComponentTagName });
+const navigatorElement = elementBuilder.build({
+  tagName: NavigatorElement.customComponentTagName,
+});
 const domParser = new DOMParser();
 const bodyElement = document.querySelector("body");
 const days = Object.freeze({
@@ -652,31 +719,41 @@ const days = Object.freeze({
   wednesday: "Среда",
   thursday: "Четверг",
   friday: "Пятница",
-  saturday: "Суббота"
+  saturday: "Суббота",
 });
 const daysShortenings = Object.freeze({
-  "Понедельник": "ПН",
-  "Вторник": "ВТ",
-  "Среда": "СР",
-  "Четверг": "ЧТ",
-  "Пятница": "ПТ",
-  "Суббота": "СБ"
+  Понедельник: "ПН",
+  Вторник: "ВТ",
+  Среда: "СР",
+  Четверг: "ЧТ",
+  Пятница: "ПТ",
+  Суббота: "СБ",
 });
 const weekParityButtonText = Object.freeze({
   1: "Нечетная неделя",
-  2: "Четная неделя"
+  2: "Четная неделя",
 });
 const navigatorStates = Object.freeze({
   loading: "loading",
   groupsList: "groupsList",
-  group: GroupElement.customComponentTagName
+  group: GroupElement.customComponentTagName,
 });
 const elementsPrototypes = Object.freeze({
-  groupListItem: Object.freeze({ tagName: "div", classList: ["groupListItem"] }),
-  weekParityToggle: Object.freeze({ tagName: "button", classList: ["weekParityToggle"], textContent: weekParityButtonText[this.currentWeekParity] }),
-  daySchedule: Object.freeze({ tagName: "table", is: DayScheduleTableElement.customComponentTagName }),
+  groupListItem: Object.freeze({
+    tagName: "div",
+    classList: ["groupListItem"],
+  }),
+  weekParityToggle: Object.freeze({
+    tagName: "button",
+    classList: ["weekParityToggle"],
+    textContent: weekParityButtonText[this.currentWeekParity],
+  }),
+  daySchedule: Object.freeze({
+    tagName: "table",
+    is: DayScheduleTableElement.customComponentTagName,
+  }),
   panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
-  day: Object.freeze({ tagName: "button", classList: ["day"] })
+  day: Object.freeze({ tagName: "button", classList: ["day"] }),
 });
 
 bodyElement.appendChild(navigatorElement);
