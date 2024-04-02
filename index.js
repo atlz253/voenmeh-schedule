@@ -88,7 +88,7 @@ class SchedulesList extends CustomElement {
       prototype: elementsPrototypes.button,
       textContent: "Расписание групп",
       onclick: () => this.#showGroupsList(),
-      classList: ["button_active"]
+      classList: ["button_active"],
     });
     this.lecturersScheduleButton = elementBuilder.build({
       prototype: elementsPrototypes.button,
@@ -245,7 +245,7 @@ class ItemElement extends HTMLElement {
   set group(group) {
     this.groupElement = group;
     this.#setTitleElementTextContent(group.name);
-    this.currentDay = this.groupElement.days[0].dayName;
+    this.currentDay = this.#getCurrentDay(this.groupElement.days);
     this.currentWeekParity = 1;
     this.#updateDaysElement();
   }
@@ -255,6 +255,20 @@ class ItemElement extends HTMLElement {
     if (textContent === "Вальштейн К.В.") {
       this.titleElement.classList.add("titleCapybara");
     }
+  }
+
+  #getCurrentDay(days) {
+    const currentDay = this.#findCurrentDay(days);
+    if (currentDay === undefined) {
+      return days[0].dayName;
+    } else {
+      return currentDay.dayName;
+    }
+  }
+
+  #findCurrentDay(days) {
+    const currentDayName = dateFormatter.currentDayName;
+    return days.find(({ dayName }) => dayName === currentDayName);
   }
 
   #updateDaysElement() {
@@ -620,6 +634,12 @@ class Time {
   }
 }
 
+class dateFormatter {
+  static get currentDayName() {
+    return new Date().toLocaleDateString("ru-RU", { weekday: "long" });
+  }
+}
+
 class VoenmehScheduleFetcher {
   static groupsScheduleURL = "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml";
   static lecturersScheduleURL =
@@ -708,7 +728,7 @@ class AbstractXMLScheduleParser {
 
   static getDaySchedule(dayElement) {
     const daySchedule = {
-      dayName: dayElement.getAttribute("Title"),
+      dayName: dayElement.getAttribute("Title").toLowerCase(),
       oddWeekLessons: [],
       evenWeekLessons: [],
     };
@@ -882,20 +902,20 @@ customElements.define(
 customElements.define(LessonElement.customComponentTagName, LessonElement);
 
 const days = Object.freeze({
-  monday: "Понедельник",
-  tuesday: "Вторник",
-  wednesday: "Среда",
-  thursday: "Четверг",
-  friday: "Пятница",
-  saturday: "Суббота",
+  monday: "понедельник",
+  tuesday: "вторник",
+  wednesday: "среда",
+  thursday: "четверг",
+  friday: "пятница",
+  saturday: "суббота",
 });
 const daysShortenings = Object.freeze({
-  Понедельник: "ПН",
-  Вторник: "ВТ",
-  Среда: "СР",
-  Четверг: "ЧТ",
-  Пятница: "ПТ",
-  Суббота: "СБ",
+  понедельник: "ПН",
+  вторник: "ВТ",
+  среда: "СР",
+  четверг: "ЧТ",
+  пятница: "ПТ",
+  суббота: "СБ",
 });
 const weekParityButtonText = Object.freeze({
   1: "Нечетная неделя",
@@ -931,9 +951,15 @@ const elementsPrototypes = Object.freeze({
   day: Object.freeze({ tagName: "button", classList: ["button", "day"] }),
   list: Object.freeze({ tagName: "ul", classList: ["list"] }),
   panel: Object.freeze({ tagName: "div", classList: ["panel"] }),
+  header: Object.freeze({ tagName: "header", classList: ["header"] }),
+});
+const header = elementBuilder.build({
+  prototype: elementsPrototypes.header,
+  children: [elementBuilder.build({ tagName: "div", classList: ["currentDate"], textContent: dateFormatter.currentDayName })],
 });
 const pageNavigator = elementBuilder.build({ tagName: NavigatorElement.customComponentTagName });
 const panel = elementBuilder.build({ prototype: elementsPrototypes.panel });
 
+document.body.appendChild(header);
 document.body.appendChild(pageNavigator);
 document.body.appendChild(panel);

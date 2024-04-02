@@ -6,6 +6,7 @@ html {
   --border-color: #c4c4c4;
   --border-radius: 4px;
   --button-disabled-color: #7c7e81;
+  --header-color: #dcdee2;
 }
 
 html,
@@ -63,6 +64,23 @@ h2 {
   margin: 0;
 }
 
+.header {
+  background-color: var(--header-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 5px;
+  display: flex;
+  justify-content: end;
+}
+
+.currentDate {
+  font-weight: bold;
+}
+
+.currentDate::before {
+  content: "Сегодня: ";
+  font-weight: normal;
+}
+
 .itemTitle {
   position: relative;
 }
@@ -88,7 +106,8 @@ schedule-navigator {
   padding: 0;
 }
 
-.groupListItem, .lecturerListItem {
+.groupListItem,
+.lecturerListItem {
   display: block;
   border-bottom: 1px solid var(--border-color);
   padding: 10px;
