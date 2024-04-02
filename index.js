@@ -246,7 +246,7 @@ class ItemElement extends HTMLElement {
     this.groupElement = group;
     this.#setTitleElementTextContent(group.name);
     this.currentDay = this.#getCurrentDay(this.groupElement.days);
-    this.currentWeekParity = 1;
+    this.currentWeekParity = dateFormatter.currentWeekParity;
     this.#updateDaysElement();
   }
 
@@ -288,7 +288,7 @@ class ItemElement extends HTMLElement {
 
   set currentWeekParity(parityNumber) {
     this.#currentWeekParity = parityNumber;
-    this.weekParityToggleElement.textContent = weekParityButtonText[parityNumber];
+    this.weekParityToggleElement.textContent = dateFormatter.getWeekParityName(parityNumber);
     this.dayScheduleElement.parity = parityNumber;
   }
 
@@ -635,8 +635,57 @@ class Time {
 }
 
 class dateFormatter {
+  static #weekParityNames = Object.freeze({
+    1: "нечетная неделя",
+    2: "четная неделя",
+  });
+
+  static get currentDate() {
+    return [this.currentDayName, this.currentWeekParityName].join(", ");
+  }
+
   static get currentDayName() {
     return new Date().toLocaleDateString("ru-RU", { weekday: "long" });
+  }
+
+  static get currentWeekParityName() {
+    return this.getWeekParityName(this.currentWeekParity);
+  }
+
+  static getWeekParityName(parityNumber) {
+    return this.#weekParityNames[parityNumber]
+  }
+
+  static get currentWeekParity() {
+    const date = this.#getRelativeDateNearestThursdayDate(new Date());
+    const yearStart = this.#getDateFirstDayOfYear(date);
+    const weekNumber = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+
+    if (weekNumber % 2 === 0) {
+      return 1;
+    } else {
+      return 2;
+    }
+  }
+
+  static #getRelativeDateNearestThursdayDate(date) {
+    const thursdayDate = this.#copyDate(date);
+    const currentDate = date.getUTCDate();
+    const currentDateNumber = this.#getDateDayNumber(date);
+    thursdayDate.setUTCDate(currentDate + 4 - currentDateNumber);
+    return thursdayDate;
+  }
+
+  static #copyDate(date) {
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  }
+
+  static #getDateDayNumber(date) {
+    return date.getUTCDay() || 7; // делаем воскресенье последним днем недели
+  }
+
+  static #getDateFirstDayOfYear(date) {
+    return new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   }
 }
 
@@ -917,10 +966,6 @@ const daysShortenings = Object.freeze({
   пятница: "ПТ",
   суббота: "СБ",
 });
-const weekParityButtonText = Object.freeze({
-  1: "Нечетная неделя",
-  2: "Четная неделя",
-});
 const navigatorStates = Object.freeze({
   schedulesList: SchedulesList.customComponentTagName,
   group: ItemElement.customComponentTagName,
@@ -940,8 +985,7 @@ const elementsPrototypes = Object.freeze({
   }),
   weekParityToggle: Object.freeze({
     tagName: "button",
-    classList: ["button", "weekParityToggle"],
-    textContent: weekParityButtonText[this.currentWeekParity],
+    classList: ["button", "weekParityToggle"]
   }),
   daySchedule: Object.freeze({
     tagName: "table",
@@ -955,7 +999,13 @@ const elementsPrototypes = Object.freeze({
 });
 const header = elementBuilder.build({
   prototype: elementsPrototypes.header,
-  children: [elementBuilder.build({ tagName: "div", classList: ["currentDate"], textContent: dateFormatter.currentDayName })],
+  children: [
+    elementBuilder.build({
+      tagName: "div",
+      classList: ["currentDate"],
+      textContent: dateFormatter.currentDate,
+    }),
+  ],
 });
 const pageNavigator = elementBuilder.build({ tagName: NavigatorElement.customComponentTagName });
 const panel = elementBuilder.build({ prototype: elementsPrototypes.panel });
