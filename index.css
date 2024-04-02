@@ -63,6 +63,22 @@ h2 {
   margin: 0;
 }
 
+.itemTitle {
+  position: relative;
+}
+
+.titleCapybara::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 40px;
+  background-image: url("img/capybara.svg");
+  background-size: cover;
+  top: -6px;
+  right: 5px;
+  position: absolute;
+}
+
 schedule-navigator {
   flex: 1;
   overflow-y: auto;

@@ -44,7 +44,7 @@ class NavigatorElement extends CustomElement {
       case navigatorStates.group:
         const { group } = stateInfo;
         this.groupElement = elementBuilder.build({
-          tagName: GroupElement.customComponentTagName,
+          tagName: ItemElement.customComponentTagName,
           parent: this,
           fields: { group },
         });
@@ -214,14 +214,14 @@ class LecturersList extends AbstractListElement {
   }
 }
 
-class GroupElement extends HTMLElement {
+class ItemElement extends HTMLElement {
   #currentDay;
   #currentWeekParity = 1;
 
   constructor() {
     super();
 
-    this.titleElement = elementBuilder.build({ tagName: "h2" });
+    this.titleElement = elementBuilder.build({ tagName: "h2", classList: ["itemTitle"] });
     this.weekParityToggleElement = elementBuilder.build({
       prototype: elementsPrototypes.weekParityToggle,
       parent: panel,
@@ -244,10 +244,17 @@ class GroupElement extends HTMLElement {
 
   set group(group) {
     this.groupElement = group;
-    this.titleElement.textContent = group.name;
+    this.#setTitleElementTextContent(group.name);
     this.currentDay = this.groupElement.days[0].dayName;
     this.currentWeekParity = 1;
     this.#updateDaysElement();
+  }
+
+  #setTitleElementTextContent(textContent) {
+    this.titleElement.textContent = textContent;
+    if (textContent === "Вальштейн К.В.") {
+      this.titleElement.classList.add("titleCapybara");
+    }
   }
 
   #updateDaysElement() {
@@ -862,7 +869,7 @@ customElements.define(NavigatorElement.customComponentTagName, NavigatorElement)
 customElements.define(SchedulesList.customComponentTagName, SchedulesList);
 customElements.define(GroupsList.customComponentTagName, GroupsList, { extends: "ul" });
 customElements.define(LecturersList.customComponentTagName, LecturersList, { extends: "ul" });
-customElements.define(GroupElement.customComponentTagName, GroupElement);
+customElements.define(ItemElement.customComponentTagName, ItemElement);
 customElements.define(DaysElement.customComponentTagName, DaysElement);
 customElements.define(DayScheduleTableElement.customComponentTagName, DayScheduleTableElement, {
   extends: "table",
@@ -896,7 +903,7 @@ const weekParityButtonText = Object.freeze({
 });
 const navigatorStates = Object.freeze({
   schedulesList: SchedulesList.customComponentTagName,
-  group: GroupElement.customComponentTagName,
+  group: ItemElement.customComponentTagName,
 });
 const elementsPrototypes = Object.freeze({
   groupListItem: Object.freeze({
