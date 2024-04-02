@@ -1,7 +1,8 @@
 # Расписание БГТУ «ВОЕНМЕХ»
 
 <p align="center">
-  <img src="img/preview.png" width="250" />
+  <img src="img/previewList.png" width="250" />
+  <img src="img/previewGroup.png" width="250" />
 </p>
 
 [Перейти на сайт с расписанием](https://atlz253.github.io/voenmeh-schedule/)
