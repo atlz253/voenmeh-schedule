@@ -690,9 +690,9 @@ class dateFormatter {
 }
 
 class VoenmehScheduleFetcher {
-  static groupsScheduleURL = "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableGroup46.xml";
+  static groupsScheduleURL = "TimetableGroup46.xml";
   static lecturersScheduleURL =
-    "https://www.voenmeh.ru/templates/jd_atlanta/js/TimetableLecturer46.xml";
+    "TimetableLecturer46.xml";
   static domParser = new DOMParser();
 
   static async tryGetLecturersSchedule() {
@@ -714,7 +714,7 @@ class VoenmehScheduleFetcher {
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
 
-      request.open("GET", this.#addCorsProxyToURL(url));
+      request.open("GET", url);
 
       request.send();
 
@@ -726,14 +726,6 @@ class VoenmehScheduleFetcher {
         }
       };
     });
-  }
-
-  /**
-   * CORS ругается при попытке получения данных с сайтов, у которых другой домен.
-   * Одним из способов решения является использование CORS-proxy: https://github.com/AverageMarcus/cors-proxy
-   */
-  static #addCorsProxyToURL(url) {
-    return "https://cors-proxy.cluster.fun/" + url;
   }
 }
 
