@@ -9,6 +9,8 @@ class CustomElement extends HTMLElement {
 }
 
 class NavigatorElement extends CustomElement {
+  static lastStateLocalStorageKey = "lastState";
+
   constructor() {
     super();
 
@@ -19,14 +21,34 @@ class NavigatorElement extends CustomElement {
     );
   }
 
+  get #lastState() {
+    return JSON.parse(localStorage.getItem(NavigatorElement.lastStateLocalStorageKey));
+  }
+
+  set #lastState(stateInfo) {
+    localStorage.setItem(
+      NavigatorElement.lastStateLocalStorageKey,
+      JSON.stringify({ ...stateInfo, saveToHistory: true })
+    );
+  }
+
   connectedCallback() {
+    const lastState = this.#lastState;
     this.changeState({ state: navigatorStates.schedulesList, replaceState: true });
+    if (lastState !== null) {
+      this.changeState(lastState);
+    }
   }
 
   changeState(stateInfo) {
+    if (stateInfo === null) {
+      return;
+    }
+
     this.clear();
     this.#setState(stateInfo);
     this.#saveStateToHistoryIfNeeded(stateInfo);
+    this.#lastState = stateInfo;
   }
 
   clear() {
@@ -50,7 +72,7 @@ class NavigatorElement extends CustomElement {
         });
         break;
       default:
-        throw new Error(`Не удалось восстановить состояние истории для ${element}`);
+        throw new Error(`Не удалось восстановить состояние истории для ${stateInfo}`);
     }
   }
 
@@ -653,7 +675,7 @@ class dateFormatter {
   }
 
   static getWeekParityName(parityNumber) {
-    return this.#weekParityNames[parityNumber]
+    return this.#weekParityNames[parityNumber];
   }
 
   static get currentWeekParity() {
@@ -691,8 +713,7 @@ class dateFormatter {
 
 class VoenmehScheduleFetcher {
   static groupsScheduleURL = "TimetableGroup46.xml";
-  static lecturersScheduleURL =
-    "TimetableLecturer46.xml";
+  static lecturersScheduleURL = "TimetableLecturer46.xml";
   static domParser = new DOMParser();
 
   static async tryGetLecturersSchedule() {
@@ -977,7 +998,7 @@ const elementsPrototypes = Object.freeze({
   }),
   weekParityToggle: Object.freeze({
     tagName: "button",
-    classList: ["button", "weekParityToggle"]
+    classList: ["button", "weekParityToggle"],
   }),
   daySchedule: Object.freeze({
     tagName: "table",
