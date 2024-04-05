@@ -94,6 +94,8 @@ class NavigatorElement extends CustomElement {
 }
 
 class SchedulesList extends CustomElement {
+  #lastActiveLocalStorageKey = "lastActive";
+
   constructor() {
     super();
 
@@ -117,17 +119,34 @@ class SchedulesList extends CustomElement {
       textContent: "Расписание преподавателей",
       onclick: () => this.#showLecturersList(),
     });
-    this.showLastActive = this.#showGroupsList;
+  }
+
+  get #showLastActive() {
+    const lastActive = localStorage.getItem(this.#lastActiveLocalStorageKey);
+
+    switch (lastActive) {
+      case null:
+      case this.#showGroupsList.name:
+        return this.#showGroupsList;
+      case this.#showLecturersList.name:
+        return this.#showLecturersList;
+      default:
+        throw new Error(`Не удалось определить последнюю активную вкладку списка: ${lastActive}`);
+    }
+  }
+
+  set #showLastActive(callback) {
+    localStorage.setItem(this.#lastActiveLocalStorageKey, callback.name);
   }
 
   connectedCallback() {
-    this.showLastActive();
+    this.#showLastActive();
     panel.appendChild(this.groupsScheduleButton);
     panel.appendChild(this.lecturersScheduleButton);
   }
 
   #showGroupsList() {
-    this.showLastActive = this.#showGroupsList;
+    this.#showLastActive = this.#showGroupsList;
     this.clear();
     this.groupsScheduleButton.classList.add("button_active");
     this.groupsScheduleButton.disabled = true;
@@ -137,7 +156,7 @@ class SchedulesList extends CustomElement {
   }
 
   #showLecturersList() {
-    this.showLastActive = this.#showLecturersList;
+    this.#showLastActive = this.#showLecturersList;
     this.clear();
     this.groupsScheduleButton.classList.remove("button_active");
     this.groupsScheduleButton.disabled = false;
